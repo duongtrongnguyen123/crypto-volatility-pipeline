@@ -7,7 +7,8 @@ SPARK_SUBMIT := spark-submit --packages $(KAFKA_PKG)
 .PHONY: help up down topics \
         producer-price producer-news producer-futures producer-depth producer-liq \
         consumer-price consumer-sentiment feature-join \
-        train train-quick infer sample clean
+        train train-quick infer evaluate sample test clean \
+        kaggle-deploy kaggle-output
 
 help:
 	@echo "Infrastructure:"
@@ -28,7 +29,11 @@ help:
 	@echo "  make train              train LSTM on historical 5-min dataset"
 	@echo "  make train-quick        fast smoke train (2 epochs, recent slice)"
 	@echo "  make infer              predict next-window volatility"
+	@echo "  make evaluate           test-set metrics + baseline comparison"
 	@echo "  make sample             synthetic live feature store (for testing)"
+	@echo "Kaggle (RTX 6000 Pro GPU training):"
+	@echo "  make kaggle-deploy      stage data+code, push dataset + kernel"
+	@echo "  make kaggle-output      download kernel output + verify GPU (sm_120)"
 
 # --- infrastructure ---
 up:
@@ -76,8 +81,22 @@ train-quick:
 infer:
 	python -m ml.infer
 
+evaluate:
+	python -m ml.evaluate --source historical
+
+test:
+	python tests/test_smoke.py
+
 sample:
 	python -m scripts.generate_sample_features --rows 3000
+
+# --- kaggle GPU training ---
+kaggle-deploy:
+	bash kaggle/stage_and_deploy.sh
+
+kaggle-output:
+	kaggle kernels output nguyenduongtrong/crypto-volatility-lstm -p kaggle/out
+	@grep -aE "sm_[0-9]+|GPU|device" kaggle/out/*.log || true
 
 clean:
 	rm -rf data/checkpoints/* data/features/*.parquet data/features/_spark_metadata

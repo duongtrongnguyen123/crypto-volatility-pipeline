@@ -1,0 +1,58 @@
+{
+  "metrics": {
+    "LSTM": {
+      "directional_acc": 0.6760446397559613,
+      "mae": 0.0006547015694267917,
+      "mape_masked": 81.20338006502872,
+      "r2": 0.5174005860717179,
+      "rmse": 0.0011109059258286962,
+      "smape": 44.04747844925293
+    },
+    "ewma": {
+      "directional_acc": 0.6900134402512874,
+      "mae": 0.0006325079299579197,
+      "mape_masked": 54.18589337830162,
+      "r2": 0.5214941743964299,
+      "rmse": 0.0011061843326120445,
+      "smape": 40.62707272191963
+    },
+    "persistence": {
+      "directional_acc": 0.00027182530693607574,
+      "mae": 0.0007642885190838955,
+      "mape_masked": 60.29042472524223,
+      "r2": 0.358165335720355,
+      "rmse": 0.0012811367010963817,
+      "smape": 48.56331105361538
+    },
+    "rolling_mean(12)": {
+      "directional_acc": 0.6919464202117217,
+      "mae": 0.0006608789626171627,
+      "mape_masked": 57.90445129915342,
+      "r2": 0.44942462258278004,
+      "rmse": 0.0011865670410955342,
+      "smape": 41.709921085127675
+    },
+    "rolling_mean(6)": {
+      "directional_acc": 0.6895150938552379,
+      "mae": 0.0006520120259668836,
+      "mape_masked": 55.58787144031368,
+      "r2": 0.4804712931731955,
+      "rmse": 0.0011526266671254282,
+      "smape": 41.4363715434181
+    }
+  },
+  "model_name": "LSTM",
+  "model_path": "/home/nduong/dev/bigdata/models/lstm_volatility.pt",
+  "num_sequences": 441465,
+  "plots": [
+    "/home/nduong/dev/bigdata/reports/pred_vs_actual.png",
+    "/home/nduong/dev/bigdata/reports/scatter.png"
+  ],
+  "sequence_length": 24,
+  "source": "historical",
+  "split": {
+    "test_frac": 0.15,
+    "val_frac": 0.15
+  },
+  "test_size": 66219
+}

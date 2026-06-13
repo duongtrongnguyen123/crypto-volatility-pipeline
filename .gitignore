@@ -18,3 +18,11 @@ models/*.pt
 CLAUDE.md
 Lab07*
 Lab08*
+
+# Personal infra notes / credentials — never publish
+accounts.txt
+kaggle_rtx6000_gate.md
+
+# Kaggle deploy staging + downloaded kernel outputs
+kaggle/build/
+kaggle/out/
