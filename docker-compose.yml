@@ -1,0 +1,78 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      # Host clients connect here.
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Two listeners: one for in-network containers (kafka:29092),
+      # one for host processes (localhost:9092).
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  # Creates the application topics once Kafka is up, then exits.
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka-setup
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...'
+      cub kafka-ready -b kafka:29092 1 60
+      for t in crypto-price crypto-news crypto-futures crypto-depth crypto-liquidations features-price features-sentiment features-market; do
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists \
+          --topic $$t --partitions 1 --replication-factor 1
+      done
+      echo 'Topics created:'
+      kafka-topics --bootstrap-server kafka:29092 --list
+      "
+
+  spark-master:
+    image: bitnami/spark:3.5.1
+    container_name: spark-master
+    environment:
+      SPARK_MODE: master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+    ports:
+      - "8080:8080"   # Spark master web UI
+      - "7077:7077"   # Spark master RPC
+    volumes:
+      - ./:/app
+    working_dir: /app
+
+  spark-worker:
+    image: bitnami/spark:3.5.1
+    container_name: spark-worker
+    depends_on:
+      - spark-master
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 4G
+      SPARK_WORKER_CORES: 4
+    volumes:
+      - ./:/app
+    working_dir: /app

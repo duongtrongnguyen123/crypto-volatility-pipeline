@@ -1,0 +1,15 @@
+# --- Ingestion ---
+kafka-python==2.0.2
+websocket-client==1.7.0
+requests==2.31.0
+
+# --- Stream processing ---
+pyspark==3.5.1
+
+# --- ML / Sentiment ---
+torch==2.2.2
+transformers==4.38.2
+numpy==1.26.4
+pandas==2.2.1
+pyarrow==15.0.2
+scikit-learn==1.4.1.post1

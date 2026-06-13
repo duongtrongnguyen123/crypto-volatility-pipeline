@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Data + model artifacts
+data/checkpoints/
+data/features/*.parquet
+data/features/_spark_metadata/
+models/*.pt
+
+# HuggingFace cache (if redirected here)
+.cache/
+
+# Unrelated course materials living in this directory
+CLAUDE.md
+Lab07*
+Lab08*
