@@ -1,13 +1,81 @@
-# Real-Time Crypto Analysis & Volatility Prediction
+# Temporal Relational Reasoning of LLMs for Crypto Crash Prediction
+
+**Big Data course project.** The headline task: use a Large Language Model to
+predict crypto market **crashes** by reasoning over the **temporal** and
+**relational** patterns in financial **news** — a crypto adaptation of
+*"Temporal Relational Reasoning of Large Language Models for Detecting Stock
+Portfolio Crashes"* ([arXiv:2410.17266](https://arxiv.org/abs/2410.17266)).
+
+The LLM reasoner (zero-shot **NVIDIA Nemotron** on a Kaggle RTX 6000 Pro GPU) is
+the star; a full **real-time Big Data pipeline** (Kafka + Spark Structured
+Streaming) and a **PyTorch LSTM** volatility model serve as the supporting
+infrastructure and the **quantitative baselines** the LLM is benchmarked against.
+
+| Part | What it does | Where |
+|---|---|---|
+| **TRR** (the assignment) | LLM reads news → builds an impact graph → reasons over time → predicts portfolio crashes | `trr/`, `kaggle/trr_kernel.py` |
+| Real-time pipeline | Binance + news → Kafka → Spark 5-min features → Parquet | `ingestion/`, `processing/` |
+| LSTM + baselines | volatility regression; persistence/EWMA/price baselines | `ml/` |
+
+Everything runs locally — no cloud required for the pipeline; the GPU LLM run
+uses Kaggle. Read on: **TRR first**, then the volatility pipeline.
+
+---
+
+## TRR — LLM crash prediction (`trr/`)
+
+The **TRR** framework is **zero-shot** — the LLM is never trained; it reasons.
+Four phases (`trr/`), run per day over a stream of news:
+
+1. **Brainstorming** (`brainstorm.py`) — the LLM turns each news item into a
+   directed **impact graph** `G=(Z,A)`: news → entities → portfolio assets, as
+   chains of signed, weighted impacts.
+2. **Memory** (`memory.py`) — a decaying store of past impacts,
+   `R = exp(−t·λ)`, carries the **temporal** signal across days.
+3. **Attention** (`attention.py`) — a PageRank-style ranking biased toward the
+   portfolio prunes to the most relevant **relational** sub-graph.
+4. **Reasoning** (`reason.py`) — the LLM predicts crash probability from the
+   pruned `(time, subject, polarity, object)` tuples.
+
+**Portfolio:** BTC, ETH, SOL, BNB, AVAX, DOGE (the relational universe).
+**Ground truth** (`trr/labels.py`): a day is a *crash* if the equal-weight
+portfolio's forward 3-day return breaches −8%. On the real 2022–2026 data this
+cleanly surfaces the **LUNA/Terra (May 2022)** and **FTX (Nov 2022)** collapses
+(9.7% of days — rare, hence AUROC for evaluation).
+
+**Backends** (`trr/llm.py`, interchangeable): `MockLLM` (deterministic, for
+offline pipeline tests) and `HFReasoningLLM` (a local HuggingFace causal LM —
+Nemotron — run zero-shot on the GPU). The pipeline code is identical either way.
+
+```bash
+make trr-labels   # show the crash labels (FTX/LUNA appear as worst drawdowns)
+make trr-eval     # run the full pipeline (MockLLM) + AUROC vs baselines
+make trr-deploy   # zero-shot Nemotron run on the Kaggle RTX 6000 Pro
+```
+
+`make trr-eval` reports AUROC / PR-AUC / F1 for TRR against three baselines —
+`base_rate`, `news_negativity` (naive negative-headline counting), and
+`price_momentum` (price-only, no news) — and saves an ROC curve + a crash-prob
+timeline to `reports/`. The MockLLM is lexicon-based so it only validates the
+*harness*; the relational + temporal **reasoning lift comes from Nemotron** on
+the GPU run (see `kaggle/TRR_README.md`). No news data is bundled beyond a
+synthetic demo corpus (`trr/sample_news.jsonl`, aligned to the real crash
+windows) — point `trr.news.load_news` at a real Kaggle crypto-news dataset for
+the full run.
+
+---
+
+## Supporting infrastructure — real-time volatility pipeline
 
 End-to-end Big Data pipeline that predicts short-term BTC/USDT **volatility**. It
 trains **offline** on 4+ years of historical 5-minute market data, and serves
 **live**: streaming Binance trades + futures + order book + liquidations + news
 through Kafka and Spark Structured Streaming, scoring news sentiment with
-FinBERT, and feeding the latest feature window to a PyTorch LSTM.
+FinBERT, and feeding the latest feature window to a PyTorch LSTM. This doubles as
+the **quantitative baseline** the TRR LLM is compared against.
 
-Everything runs locally — no cloud. GPU (RTX 2060 Super) is used automatically
-for FinBERT scoring and LSTM training when available.
+GPU (RTX 2060 Super) is used automatically for FinBERT scoring and LSTM training
+when available.
 
 ## Train offline, serve live
 
@@ -86,12 +154,28 @@ bigdata/
 │   ├── infer.py                 # load model + predict latest window
 │   ├── baselines.py             # naive predictors (persistence, rolling, EWMA)
 │   └── evaluate.py              # held-out test metrics + baseline comparison
-├── kaggle/                     # RTX 6000 Pro GPU training deployment
-│   ├── train_kernel.py          # Kaggle entrypoint (no-internet, GPU gate check)
-│   ├── kernel-metadata.json     # the three-field RTX 6000 Pro gate
+├── trr/                        # TRR — LLM temporal-relational crash prediction
+│   ├── schema.py                # NewsItem, ImpactEdge/Graph, Prediction
+│   ├── labels.py                # portfolio crash labels from price (FTX/LUNA)
+│   ├── llm.py                   # ReasoningLLM: MockLLM + HFReasoningLLM (Nemotron)
+│   ├── brainstorm.py            # phase 1: news -> directed impact graph
+│   ├── memory.py                # phase 2: decaying temporal memory R=exp(-t·λ)
+│   ├── attention.py             # phase 3: PageRank-style portfolio-biased prune
+│   ├── reason.py                # phase 4: LLM crash prediction on subgraph
+│   ├── pipeline.py              # TRRPipeline tying the four phases per day
+│   ├── news.py                  # news loader/normalizer + sample loader
+│   ├── sample_news.jsonl        # synthetic demo corpus (aligned to real crashes)
+│   └── evaluate.py              # AUROC/PR-AUC/F1 vs baselines + plots
+├── kaggle/                     # RTX 6000 Pro GPU deployment
+│   ├── train_kernel.py          # LSTM Kaggle entrypoint (no-internet, GPU gate)
+│   ├── trr_kernel.py            # TRR zero-shot Nemotron entrypoint
+│   ├── kernel-metadata.json     # LSTM kernel — the three-field RTX 6000 Pro gate
+│   ├── trr-kernel-metadata.json # TRR kernel metadata (+ Nemotron model_sources)
 │   ├── dataset-metadata.json    # code + data bundle
-│   ├── stage_and_deploy.sh      # upload dataset + push kernel
-│   └── README.md                # deploy guide + GPU verification
+│   ├── stage_and_deploy.sh      # LSTM: upload dataset + push kernel
+│   ├── deploy_trr.sh            # TRR: stage code+data+news + push kernel
+│   ├── README.md                # LSTM deploy guide + GPU verification
+│   └── TRR_README.md            # TRR deploy guide + Nemotron model setup
 ├── scripts/
 │   ├── create_topics.sh
 │   └── generate_sample_features.py   # synthetic live feature store

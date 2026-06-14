@@ -8,7 +8,8 @@ SPARK_SUBMIT := spark-submit --packages $(KAFKA_PKG)
         producer-price producer-news producer-futures producer-depth producer-liq \
         consumer-price consumer-sentiment feature-join \
         train train-quick infer evaluate sample test clean \
-        kaggle-deploy kaggle-output
+        kaggle-deploy kaggle-output \
+        trr-labels trr-eval trr-deploy
 
 help:
 	@echo "Infrastructure:"
@@ -31,8 +32,12 @@ help:
 	@echo "  make infer              predict next-window volatility"
 	@echo "  make evaluate           test-set metrics + baseline comparison"
 	@echo "  make sample             synthetic live feature store (for testing)"
-	@echo "Kaggle (RTX 6000 Pro GPU training):"
-	@echo "  make kaggle-deploy      stage data+code, push dataset + kernel"
+	@echo "TRR (LLM temporal-relational reasoning — the assignment):"
+	@echo "  make trr-labels         show portfolio crash labels (real crashes)"
+	@echo "  make trr-eval           run TRR pipeline + AUROC vs baselines (MockLLM)"
+	@echo "  make trr-deploy         deploy zero-shot Nemotron TRR run to Kaggle GPU"
+	@echo "Kaggle (RTX 6000 Pro GPU):"
+	@echo "  make kaggle-deploy      LSTM: stage data+code, push dataset + kernel"
 	@echo "  make kaggle-output      download kernel output + verify GPU (sm_120)"
 
 # --- infrastructure ---
@@ -86,6 +91,17 @@ evaluate:
 
 test:
 	python tests/test_smoke.py
+	python tests/test_trr.py
+
+# --- TRR (LLM temporal-relational reasoning) ---
+trr-labels:
+	python -m trr.labels
+
+trr-eval:
+	python -m trr.evaluate
+
+trr-deploy:
+	bash kaggle/deploy_trr.sh
 
 sample:
 	python -m scripts.generate_sample_features --rows 3000
