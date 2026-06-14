@@ -279,7 +279,7 @@ def _gpu_diagnostics_and_gate() -> str:
 # --------------------------------------------------------------------------- #
 # Main.
 # --------------------------------------------------------------------------- #
-BUILD_TAG = "v8-qwen-genfix"
+BUILD_TAG = "v9-repin"
 
 
 def _needs_mamba(model_dir: str) -> bool:
