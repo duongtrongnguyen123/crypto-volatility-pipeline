@@ -307,24 +307,34 @@ class HFReasoningLLM(ReasoningLLM):
                  temperature: float = 0.0) -> str:
         torch = self._torch
         messages = [{"role": "user", "content": prompt}]
+        attention_mask = None
         try:
-            inputs = self.tokenizer.apply_chat_template(
+            enc = self.tokenizer.apply_chat_template(
                 messages, add_generation_prompt=True, return_tensors="pt",
-                truncation=True, max_length=self.max_input_tokens,
-            ).to(self.device)
+                return_dict=True, truncation=True, max_length=self.max_input_tokens,
+            )
+            input_ids = enc["input_ids"].to(self.device)
+            if "attention_mask" in enc:
+                attention_mask = enc["attention_mask"].to(self.device)
         except Exception:
-            inputs = self.tokenizer(
+            enc = self.tokenizer(
                 prompt, return_tensors="pt", truncation=True,
                 max_length=self.max_input_tokens,
-            ).input_ids.to(self.device)
+            )
+            input_ids = enc["input_ids"].to(self.device)
+            attention_mask = enc["attention_mask"].to(self.device)
+
+        gen_kwargs = dict(
+            max_new_tokens=max_new_tokens,
+            do_sample=temperature > 0,
+            pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+        )
+        if attention_mask is not None:
+            gen_kwargs["attention_mask"] = attention_mask
+        if temperature > 0:
+            gen_kwargs["temperature"] = temperature
 
         with torch.no_grad():
-            out = self.model.generate(
-                inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=temperature > 0,
-                temperature=max(temperature, 1e-5),
-                pad_token_id=self.tokenizer.eos_token_id,
-            )
-        text = self.tokenizer.decode(out[0][inputs.shape[1]:], skip_special_tokens=True)
-        return text
+            out = self.model.generate(input_ids, **gen_kwargs)
+        gen = out[0][input_ids.shape[1]:]
+        return self.tokenizer.decode(gen, skip_special_tokens=True)
