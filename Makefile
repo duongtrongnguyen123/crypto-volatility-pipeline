@@ -6,6 +6,7 @@ SPARK_SUBMIT := spark-submit --packages $(KAFKA_PKG)
 
 .PHONY: help up down topics \
         producer-price producer-news producer-futures producer-depth producer-liq \
+        producer-news-replay consumer-trr \
         consumer-price consumer-sentiment feature-join \
         train train-quick infer evaluate sample test clean \
         kaggle-deploy kaggle-output \
@@ -26,6 +27,8 @@ help:
 	@echo "  make consumer-price     crypto-price -> features-price (5-min)"
 	@echo "  make consumer-sentiment crypto-news  -> features-sentiment (FinBERT)"
 	@echo "  make feature-join       merge all -> ./data/features parquet"
+	@echo "  make producer-news-replay  replay news CSV -> crypto-news (demo)"
+	@echo "  make consumer-trr       live news -> crash-risk signal (TRR speed layer)"
 	@echo "ML:"
 	@echo "  make train              train LSTM on historical 5-min dataset"
 	@echo "  make train-quick        fast smoke train (2 epochs, recent slice)"
@@ -66,6 +69,9 @@ producer-depth:
 producer-liq:
 	python -m ingestion.producer_liquidations
 
+producer-news-replay:
+	python -m ingestion.producer_news_replay --rate 50
+
 # --- processing ---
 consumer-price:
 	$(SPARK_SUBMIT) processing/consumer_price.py
@@ -75,6 +81,10 @@ consumer-sentiment:
 
 feature-join:
 	$(SPARK_SUBMIT) processing/feature_join.py
+
+# TRR speed layer: live news -> crash-risk signal (real-time half of the system)
+consumer-trr:
+	$(SPARK_SUBMIT) processing/consumer_trr.py
 
 # --- ml ---
 train:

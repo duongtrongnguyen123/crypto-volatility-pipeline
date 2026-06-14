@@ -22,6 +22,7 @@ TOPIC_LIQUIDATIONS = "crypto-liquidations"  # raw forced-order (liquidation) eve
 TOPIC_FEATURES_PRICE = "features-price"
 TOPIC_FEATURES_SENTIMENT = "features-sentiment"
 TOPIC_FEATURES_MARKET = "features-market"   # windowed futures + depth + liq
+TOPIC_CRASH_SIGNAL = "crash-signal"         # live TRR crash-risk per news window
 
 # --- Data sources -----------------------------------------------------------
 SYMBOL = "BTCUSDT"
