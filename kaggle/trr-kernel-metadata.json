@@ -14,12 +14,10 @@
   ],
   "dataset_sources": [
     "nguyenduongtrong/crypto-trr-bundle",
-    "oliviervha/crypto-news",
-    "raist321/mamba-ssm-wheels-cu128",
-    "eshanmehendale/nvidia-nemotron-mamba-ssm-torch210-blackwell"
+    "oliviervha/crypto-news"
   ],
   "kernel_sources": [],
   "model_sources": [
-    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default/1"
+    "qwen-lm/qwen2.5/transformers/14b-instruct/1"
   ]
 }

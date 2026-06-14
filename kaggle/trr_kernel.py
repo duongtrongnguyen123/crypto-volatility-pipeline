@@ -279,7 +279,21 @@ def _gpu_diagnostics_and_gate() -> str:
 # --------------------------------------------------------------------------- #
 # Main.
 # --------------------------------------------------------------------------- #
-BUILD_TAG = "v6-mamba-wheels"
+BUILD_TAG = "v7-qwen14b"
+
+
+def _needs_mamba(model_dir: str) -> bool:
+    """True if the model's config requires mamba_ssm (hybrid Mamba models like
+    Nemotron-H). Pure-Transformer models (Qwen, Llama, Gemma) do not.
+    """
+    cfg = os.path.join(model_dir, "config.json")
+    if not os.path.exists(cfg):
+        return False
+    try:
+        text = open(cfg, encoding="utf-8").read().lower()
+    except OSError:
+        return False
+    return "mamba" in text or "nemotron_h" in text
 
 
 def _install_offline_wheels(packages: list[str]) -> None:
@@ -365,12 +379,12 @@ def main() -> int:
             print("[kernel] Nemotron model (see kaggle/TRR_README.md) and re-push.")
             print("=" * 72)
             return 1
-        print(f"[kernel] Nemotron model dir: {model_dir}")
-        # Nemotron-H is a hybrid Mamba-Transformer; its custom modeling code
-        # imports mamba_ssm + causal_conv1d, which are NOT on the Kaggle image.
-        # The kernel has no internet, so install them offline from the staged
-        # raist321/mamba-ssm-wheels-cu128 wheelhouse BEFORE the model loads.
-        _install_offline_wheels(["einops", "causal_conv1d", "mamba_ssm"])
+        print(f"[kernel] model dir: {model_dir}")
+        # Hybrid Mamba models (e.g. Nemotron-H) need mamba_ssm + causal_conv1d,
+        # absent from the no-internet Kaggle image. Install offline ONLY if the
+        # model requires it; pure-Transformer models (Qwen) load as-is.
+        if _needs_mamba(model_dir):
+            _install_offline_wheels(["einops", "causal_conv1d", "mamba_ssm"])
         llm = HFReasoningLLM(model_path=model_dir, dtype=dtype)
 
     # --- Run the BATCHED pipeline -> daily predictions -------------------- #
