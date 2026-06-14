@@ -80,26 +80,50 @@ def _find_kaggle_mount() -> tuple[str, str]:
 
     Returns (code_dir, data_dir). The dataset slug is unknown ahead of time, so
     glob for any */code under /kaggle/input that contains the `trr/` package.
+
+    The bundle is uploaded with `--dir-mode zip` (Kaggle skips bare subdirs
+    otherwise), so on the mount the subdirs may appear as `code.zip` / `data.zip`
+    rather than extracted folders. If so, extract them to a writable temp dir.
     """
-    code_candidates = sorted(glob.glob("/kaggle/input/*/code"))
-    code_dir = None
-    for cand in code_candidates:
+    # 1. Already-extracted code/ dir.
+    for cand in sorted(glob.glob("/kaggle/input/*/code")):
         if os.path.isdir(os.path.join(cand, "trr")):
-            code_dir = cand
-            break
-    if code_dir is None:
-        raise FileNotFoundError(
-            "Could not find a staged code dir containing the trr/ package under "
-            "/kaggle/input/*/code. Did the crypto-trr-bundle dataset get "
-            "attached to the kernel?"
-        )
-    mount = os.path.dirname(code_dir)
-    data_dir = os.path.join(mount, "data")
-    if not os.path.isdir(data_dir):
-        raise FileNotFoundError(
-            f"Found code at {code_dir} but no sibling data dir at {data_dir}."
-        )
-    return code_dir, data_dir
+            mount = os.path.dirname(cand)
+            data_dir = os.path.join(mount, "data")
+            if os.path.isdir(data_dir):
+                return cand, data_dir
+
+    # 2. Zipped subdirs (code.zip + data.zip) -> extract to /tmp.
+    import zipfile
+
+    for code_zip in sorted(glob.glob("/kaggle/input/*/code.zip")):
+        mount = os.path.dirname(code_zip)
+        dest = "/tmp/trr_bundle"
+        os.makedirs(dest, exist_ok=True)
+        with zipfile.ZipFile(code_zip) as zf:
+            zf.extractall(os.path.join(dest, "code"))
+        data_zip = os.path.join(mount, "data.zip")
+        if os.path.exists(data_zip):
+            with zipfile.ZipFile(data_zip) as zf:
+                zf.extractall(os.path.join(dest, "data"))
+        # The zip may contain the dir contents directly, or a nested code/ dir.
+        code_dir = os.path.join(dest, "code")
+        if not os.path.isdir(os.path.join(code_dir, "trr")):
+            inner = os.path.join(code_dir, "code")
+            if os.path.isdir(os.path.join(inner, "trr")):
+                code_dir = inner
+        data_dir = os.path.join(dest, "data")
+        inner_data = os.path.join(data_dir, "data")
+        if os.path.isdir(inner_data):
+            data_dir = inner_data
+        if os.path.isdir(os.path.join(code_dir, "trr")):
+            return code_dir, data_dir
+
+    raise FileNotFoundError(
+        "Could not find the staged code (trr/ package) under /kaggle/input/*/code "
+        "or /kaggle/input/*/code.zip. Did the crypto-trr-bundle dataset get "
+        "attached to the kernel?"
+    )
 
 
 def _find_news_file(data_dir: str) -> str:
