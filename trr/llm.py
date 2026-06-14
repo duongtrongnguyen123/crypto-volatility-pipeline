@@ -290,10 +290,15 @@ class HFReasoningLLM(ReasoningLLM):
 
         self._torch = torch
         self.max_input_tokens = max_input_tokens
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        # Nemotron ships custom modeling code (model_type "nemotron_h"); it must
+        # be trusted to load. The kernel runs non-interactively, so confirm here.
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_path, trust_remote_code=True,
+        )
         torch_dtype = getattr(torch, dtype, torch.float32)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path, torch_dtype=torch_dtype, device_map=device,
+            trust_remote_code=True,
         )
         self.model.eval()
         self.device = device
