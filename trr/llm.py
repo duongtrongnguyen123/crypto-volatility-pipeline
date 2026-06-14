@@ -205,14 +205,24 @@ class ReasoningLLM(ABC):
             for t in tuples
         )
         return (
-            "You are detecting an imminent crypto portfolio crash from a graph "
-            "of dated, directed impact relations (time, subject, polarity, "
-            "object).\n"
+            "You are forecasting whether the crypto portfolio (BTC, ETH, SOL, "
+            "BNB, AVAX, DOGE) will CRASH (drop >8% over the next 3 days) from a "
+            "graph of dated, directed news-impact relations (time, subject, "
+            "polarity, object).\n"
             f"{context}\n"
             f"Impact tuples:\n{lines}\n\n"
-            "Reason over the temporal accumulation and relational spread of "
-            "negative impacts toward the portfolio. Return ONLY JSON: "
-            '{"crash_prob": 0..1, "rationale": "..."}.\n'
+            "CALIBRATION — read carefully:\n"
+            "- Crypto news is negative on MOST days; routine bearish headlines do "
+            "NOT mean a crash. The base rate of actual crashes is only ~13% of "
+            "days, so the DEFAULT/typical answer is a LOW probability (~0.10-0.20).\n"
+            "- Assign a HIGH probability (>0.6) ONLY when the impacts show "
+            "SYSTEMIC, escalating, contagion-style stress concentrated in time — "
+            "e.g. a major exchange/stablecoin failure, cascading liquidations, or "
+            "insolvency spreading across multiple portfolio assets at once.\n"
+            "- Distinguish a normal stream of negative chatter (LOW) from a sharp, "
+            "broad escalation beyond the usual baseline (HIGH). Spread your "
+            "probabilities across the 0..1 range; do not anchor every day high.\n"
+            "Return ONLY JSON: {\"crash_prob\": 0..1, \"rationale\": \"...\"}.\n"
         )
 
 

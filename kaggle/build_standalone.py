@@ -35,7 +35,7 @@ from datetime import date, datetime
 import numpy as np
 import pandas as pd
 
-BUILD_TAG = "standalone-v1"
+BUILD_TAG = "standalone-v2-calib"
 
 
 class config:  # shim: only HISTORICAL_DIR is referenced by the inlined code
@@ -176,7 +176,7 @@ def main():
         llm = HFReasoningLLM(model_path=model_dir, dtype=dtype)
 
     print(f"[kernel] window {start}..{end}  news_items={len(news)}", flush=True)
-    pipe = TRRPipeline(llm=llm, batch=True, max_items_per_day=MAX_ITEMS_PER_DAY)
+    pipe = TRRPipeline(llm=llm, batch=True, max_items_per_day=MAX_ITEMS_PER_DAY, lam=0.6)
     pred = pipe.run(group_by_day(news), start=start, end=end)
     print(f"[kernel] predicted {len(pred)} days", flush=True)
 
