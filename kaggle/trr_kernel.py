@@ -279,8 +279,12 @@ def _gpu_diagnostics_and_gate() -> str:
 # --------------------------------------------------------------------------- #
 # Main.
 # --------------------------------------------------------------------------- #
+BUILD_TAG = "v5-trustcode"
+
+
 def main() -> int:
     smoke = _is_smoke()
+    print(f"[kernel] BUILD={BUILD_TAG}")
     print(f"[kernel] mode={'SMOKE' if smoke else 'KAGGLE'}")
 
     code_dir, data_dir, out_dir = _configure_env()
