@@ -279,7 +279,35 @@ def _gpu_diagnostics_and_gate() -> str:
 # --------------------------------------------------------------------------- #
 # Main.
 # --------------------------------------------------------------------------- #
-BUILD_TAG = "v5-trustcode"
+BUILD_TAG = "v6-mamba-wheels"
+
+
+def _install_offline_wheels(packages: list[str]) -> None:
+    """Install packages from staged wheels with no internet (--no-index).
+
+    Locates the wheelhouse dir(s) under /kaggle/input that contain the requested
+    package wheels and pip-installs them offline. Used for mamba_ssm /
+    causal_conv1d which Nemotron-H needs but the Kaggle image lacks.
+    """
+    import subprocess
+
+    find_dirs: set[str] = set()
+    for pkg in packages:
+        for whl in glob.glob(f"/kaggle/input/**/{pkg}*.whl", recursive=True):
+            find_dirs.add(os.path.dirname(whl))
+    if not find_dirs:
+        print(f"[deps] WARNING: no wheels found for {packages} under /kaggle/input")
+        return
+    cmd = [sys.executable, "-m", "pip", "install", "--no-index", "--no-deps"]
+    for d in find_dirs:
+        cmd += ["--find-links", d]
+    cmd += packages
+    print(f"[deps] installing offline: {' '.join(packages)} from {find_dirs}", flush=True)
+    try:
+        subprocess.run(cmd, check=True)
+        print("[deps] offline install OK", flush=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"[deps] offline install FAILED: {exc}", flush=True)
 
 
 def main() -> int:
@@ -338,6 +366,11 @@ def main() -> int:
             print("=" * 72)
             return 1
         print(f"[kernel] Nemotron model dir: {model_dir}")
+        # Nemotron-H is a hybrid Mamba-Transformer; its custom modeling code
+        # imports mamba_ssm + causal_conv1d, which are NOT on the Kaggle image.
+        # The kernel has no internet, so install them offline from the staged
+        # raist321/mamba-ssm-wheels-cu128 wheelhouse BEFORE the model loads.
+        _install_offline_wheels(["einops", "causal_conv1d", "mamba_ssm"])
         llm = HFReasoningLLM(model_path=model_dir, dtype=dtype)
 
     # --- Run the BATCHED pipeline -> daily predictions -------------------- #
