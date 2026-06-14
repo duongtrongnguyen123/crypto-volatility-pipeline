@@ -4,16 +4,25 @@ Temporal Relational Reasoning (TRR) for crypto portfolio crash detection — the
 crypto adaptation of **"Temporal Relational Reasoning of Large Language Models
 for Detecting Stock Portfolio Crashes"** ([arXiv:2410.17266](https://arxiv.org/abs/2410.17266)).
 
-The pipeline reasons over financial **news** to detect upcoming crashes in the
-portfolio `["BTC","ETH","SOL","BNB","AVAX","DOGE"]`, scored against **real**
-price-derived crash labels (LUNA May-2022, FTX Nov-2022) and three baselines.
+The pipeline reasons over **real** financial **news** (the
+[`oliviervha/crypto-news`](https://www.kaggle.com/datasets/oliviervha/crypto-news)
+dataset — `cryptonews.csv`, 31,037 headlines, Oct-2021..Dec-2023) to detect
+upcoming crashes in the portfolio `["BTC","ETH","SOL","BNB","AVAX","DOGE"]`,
+scored against **real** price-derived crash labels (LUNA May-2022, FTX Nov-2022).
+
+The LLM backend on Kaggle is **NVIDIA Nemotron**
+(`metric/nemotron-3-nano-30b-a3b-bf16/transformers/default`), run zero-shot on
+the RTX 6000 Pro (Blackwell, sm_120).
 
 ## The four phases
 
 For each day, in chronological order (`trr/pipeline.py`):
 
 1. **Brainstorm** — the LLM extracts directed *impact relations* (`X --polarity-->
-   portfolio asset`) from the day's news, building that day's impact graph.
+   portfolio asset`) from the day's news, building that day's impact graph. On
+   the real corpus this is **batched**: all of a day's headlines go into **one**
+   LLM call (`extract_impacts_batch`) that returns every impact edge for the day,
+   instead of one call per article (see "Batched daily brainstorming" below).
 2. **Memory** — new edges are added to a decaying memory so accumulated negative
    impacts keep elevating the crash signal even after the news ages.
 3. **Retrieve + Attention** — decayed edges are unioned with today's, then
@@ -71,10 +80,12 @@ the code, price data, news, and the Nemotron model are all pre-staged.
    ```
 
    This builds `kaggle/build_trr/` with `code/` (config.py + ml/ + the whole
-   `trr/` package incl. `sample_news.jsonl`) and `data/` (the six
-   `*USDT_5min_long.csv` price files + `sample_news.jsonl` as the default news
-   file), creates/versions the private `crypto-trr-bundle` dataset, then pushes
-   the `crypto-trr-nemotron` kernel.
+   `trr/` package incl. the synthetic `sample_news.jsonl` SMOKE fallback) and
+   `data/` (the six `*USDT_5min_long.csv` price files **only** — the real news is
+   **not** bundled), creates/versions the private `crypto-trr-bundle` dataset,
+   then pushes the `crypto-trr-nemotron` kernel. The real news and the Nemotron
+   model are mounted from `dataset_sources` / `model_sources` (already set in
+   `kaggle/trr-kernel-metadata.json`).
 
 4. **Collect output:**
 
@@ -82,37 +93,72 @@ the code, price data, news, and the Nemotron model are all pre-staged.
    kaggle kernels output nguyenduongtrong/crypto-trr-nemotron -p kaggle/out
    ```
 
-   Artifacts: `trr_predictions.csv`, `eval_results.json`, `trr_roc.png`,
-   `trr_timeline.png`.
+   Artifacts: `trr_predictions.csv`, `eval_results.json`, `trr_timeline.png`.
 
-## Setting the Nemotron model (`model_sources`)
+## The Nemotron model (`model_sources`)
 
-The kernel is **model-path-agnostic**: at runtime it auto-detects the staged
-HuggingFace model dir under `/kaggle/input` (a directory containing
-`config.json` + a tokenizer file). But Kaggle only **mounts** a model if it is
-listed in `model_sources`, so you must set it.
+The competition model is **already set** in `kaggle/trr-kernel-metadata.json`:
 
-1. Find the Nemotron model on **Kaggle Models** (kaggle.com/models) for the
-   nvidia-nemotron-model-reasoning-challenge competition. A model source slug has
-   the form `owner/model/framework/variation`, for example:
+```json
+"model_sources": ["metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"]
+```
 
-   ```json
-   "model_sources": ["nvidia/nemotron-nano/transformers/9b-v2"]
-   ```
+This is the official NVIDIA Nemotron checkpoint in HuggingFace `transformers`
+format. The kernel is **model-path-agnostic**: at runtime it auto-detects the
+mounted HuggingFace model dir under `/kaggle/input` (a directory containing
+`config.json` + a tokenizer file), so the slug above is all that needs to change
+if you swap checkpoints. Kaggle only **mounts** a model listed in
+`model_sources`; if none is mounted the kernel aborts with a clear message.
 
-   **Confirm the exact slug on Kaggle Models** — the owner, model name,
-   framework, and variation vary by which Nemotron checkpoint you choose. Copy
-   it from the model page's "Add Input" / model-source string; do not assume the
-   example above is current.
+## The news dataset (`dataset_sources`)
 
-2. Put it in `kaggle/trr-kernel-metadata.json`:
+The real news is the attached **`oliviervha/crypto-news`** dataset, mounted at
+`/kaggle/input/crypto-news/cryptonews.csv` (31,037 headlines). It is listed in
+`dataset_sources` alongside the code/price bundle:
 
-   ```json
-   "model_sources": ["<owner>/<model>/<framework>/<variation>"]
-   ```
+```json
+"dataset_sources": [
+  "nguyenduongtrong/crypto-trr-bundle",
+  "oliviervha/crypto-news"
+]
+```
 
-3. Re-run `bash kaggle/deploy_trr.sh`. If no model is mounted, the kernel aborts
-   with a clear message pointing back here.
+The kernel's `_find_news_file` globs `/kaggle/input` for `*cryptonews*.csv`
+first, so the real news is picked up automatically; `trr.news.load_news` parses
+its `date,sentiment,source,subject,text,title,url` schema directly.
+
+## Date window (`TRR_START` / `TRR_END`)
+
+Running the LLM over all ~700 news days is more than the RTX 6000 Pro quota
+needs to absorb for a first pass, so the kernel processes a **bounded date
+window**. It defaults to the **FTX-collapse validation window**:
+
+```
+TRR_START = 2022-10-01
+TRR_END   = 2022-12-15
+```
+
+(~76 days). Set the `TRR_START` / `TRR_END` kernel environment variables to
+widen it — e.g. the **full run** `TRR_START=2022-01-01`, `TRR_END=2023-07-01`
+once you have confirmed the bounded run is healthy. In SMOKE mode the window
+defaults to a tiny `2022-11-05..2022-11-12` (also overridable via the same vars).
+
+## Batched daily brainstorming (~1400 LLM calls, not 31k)
+
+The naive Brainstorming phase calls the LLM **once per article**. On the 31,037-
+article real corpus that is 31k+ generations — infeasible on the GPU quota. The
+kernel instead runs the **batched** pipeline, `TRRPipeline(llm, batch=True,
+max_items_per_day=40)`:
+
+- **Brainstorm** aggregates each day's (up to 40 most-recent) headlines into
+  **one** numbered prompt and asks for a single JSON array of impact edges, each
+  tagged with the `news_idx` of its source headline (`extract_impacts_batch`).
+- So the cost is **~1 brainstorm + 1 reason call per day** ≈ **2 calls/day**.
+  Over the default ~76-day FTX window that is ~150 calls; over the full
+  ~550-day window ≈ **~1100–1400 calls** — well within budget.
+
+`batch=False` (the default for the local tests / `trr.evaluate`) preserves the
+original per-article behaviour, so nothing else changes.
 
 ## The three-field GPU gate + sm_120 verification
 
@@ -144,32 +190,33 @@ failed or the 30 hrs/week RTX 6000 Pro quota was exhausted. The kernel selects
 ## No internet
 
 The kernel sets `enable_internet: false`. Everything it needs is pre-staged:
-project code + price CSVs + news in the `crypto-trr-bundle` dataset, and the
-Nemotron weights via `model_sources`. `transformers`/`torch` are already on the
-Kaggle image and are lazy-imported by `HFReasoningLLM`.
+project code + price CSVs in the `crypto-trr-bundle` dataset, the real news via
+the `oliviervha/crypto-news` dataset, and the Nemotron weights via
+`model_sources`. `transformers`/`torch` are already on the Kaggle image and are
+lazy-imported by `HFReasoningLLM`.
 
-## Swapping in a real news dataset
+## The synthetic SMOKE fallback
 
-The bundled `sample_news.jsonl` is **synthetic** (clearly fictional,
-`source: "synthetic"`), with negative-headline clusters aligned to the real
-LUNA/FTX crash windows so the pipeline demonstrates end-to-end offline.
-
-To use real headlines, stage a real crypto-news `.jsonl`/`.csv` (e.g. a
-CryptoPanic / crypto-headlines export) into the bundle's `data/` dir in place of
-(or alongside) `sample_news.jsonl`, or attach it as another `dataset_sources`
-entry. The kernel's `_find_news_file` picks up the first news file it finds, and
-`trr.news.load_news` is schema-tolerant (handles `timestamp`/`date`/
-`published_at`, `title`/`headline`, `body`/`content`, `source`/`publisher`, and
-`assets`/`tickers`/`currencies` including CryptoPanic's list-of-dicts form), so
-most public datasets load with no extra work.
+The real run always uses `oliviervha/crypto-news`. The bundled
+`sample_news.jsonl` is **synthetic** (clearly fictional, `source: "synthetic"`),
+with negative-headline clusters aligned to the real LUNA/FTX crash windows; it
+ships inside `code/trr/` purely as the **SMOKE fallback** for when the real CSV
+is not on disk. `trr.news.load_news` is schema-tolerant (handles `timestamp`/
+`date`/`published_at`, `title`/`headline`, `body`/`content`, `source`/`publisher`,
+and `assets`/`tickers`/`currencies` including CryptoPanic's list-of-dicts form),
+so other public datasets load too if you change the `dataset_sources` entry.
 
 ## Local smoke test
 
-Validate the full orchestration off-Kaggle on CPU (MockLLM + sample news),
-writing `trr_predictions.csv` + `eval_results.json` under `/tmp/trr_smoke_out`:
+Validate the full orchestration off-Kaggle on CPU with `MockLLM` and the
+**batched** pipeline, writing `trr_predictions.csv` + `eval_results.json` +
+`trr_timeline.png` under `/tmp/trr_smoke_out`:
 
 ```bash
 SMOKE=1 python kaggle/trr_kernel.py
 ```
 
-CUDA is unavailable on CPU, so the GPU gate prints a note and does **not** abort.
+If the real `data/news_raw/oliviervha/cryptonews.csv` is present locally the
+smoke run uses it (bounded to `2022-11-05..2022-11-12`); otherwise it falls back
+to the synthetic `sample_news.jsonl`. CUDA is unavailable on CPU, so the GPU gate
+prints a note and does **not** abort.

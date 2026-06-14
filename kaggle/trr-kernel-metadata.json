@@ -13,8 +13,11 @@
     "nvidia-nemotron-model-reasoning-challenge"
   ],
   "dataset_sources": [
-    "nguyenduongtrong/crypto-trr-bundle"
+    "nguyenduongtrong/crypto-trr-bundle",
+    "oliviervha/crypto-news"
   ],
   "kernel_sources": [],
-  "model_sources": []
+  "model_sources": [
+    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
+  ]
 }

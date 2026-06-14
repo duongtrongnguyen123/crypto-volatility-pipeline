@@ -46,15 +46,28 @@ def build_impact_graph(
     llm: ReasoningLLM,
     portfolio: list[str] = PORTFOLIO,
     max_hops: int = 1,
+    batch: bool = False,
+    max_items: int = 40,
 ) -> ImpactGraph:
     """Build the directed impact graph for a set of news items.
 
     Calls `llm.extract_impacts` per item, adds the resulting edges, and — when an
     edge stops at a non-portfolio intermediary — expands further hops (up to
     `max_hops`) so the impact reaches a portfolio asset where possible.
+
+    When ``batch=True`` the brainstorming for the whole set is done in ONE
+    `llm.extract_impacts_batch(news_items, portfolio, max_items)` call instead of
+    one call per item — the path used for the large real corpus on Kaggle, where
+    a per-article call count is infeasible. Multi-hop expansion is not applied in
+    the batched path (the batch prompt already asks for portfolio-targeted edges).
     """
     graph = ImpactGraph()
     portfolio_set = set(portfolio)
+
+    if batch:
+        for edge in llm.extract_impacts_batch(news_items, portfolio, max_items):
+            graph.add_edge(edge)
+        return graph
 
     for news in news_items:
         for edge in llm.extract_impacts(news, portfolio):

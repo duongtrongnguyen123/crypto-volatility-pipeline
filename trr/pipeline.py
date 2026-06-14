@@ -37,12 +37,19 @@ class TRRPipeline:
         label_threshold: float = 0.5,
         portfolio: list[str] = PORTFOLIO,
         mem_min_relevance: float = 0.5,
+        batch: bool = False,
+        max_items_per_day: int = 40,
     ) -> None:
         self.llm = llm if llm is not None else MockLLM()
         self.lam = lam
         self.top_k = top_k
         self.label_threshold = label_threshold
         self.portfolio = portfolio
+        # Batched brainstorming: one LLM call per day instead of per article. On
+        # the real ~31k-article corpus this is the difference between ~1400 and
+        # ~31k generations — the only feasible path on the GPU quota.
+        self.batch = batch
+        self.max_items_per_day = max_items_per_day
         # Memory edges are carried into reasoning only while still salient; with
         # the exponential decay this lets a quiet day shed stale negatives so the
         # crash signal genuinely fades over time.
@@ -53,8 +60,12 @@ class TRRPipeline:
         """Run the four phases for a single day."""
         ts = datetime(day.year, day.month, day.day)
 
-        # 1. Brainstorm today's news into an impact graph.
-        graph = build_impact_graph(day_news, self.llm, self.portfolio)
+        # 1. Brainstorm today's news into an impact graph. In batched mode this
+        #    is ONE LLM call covering the whole day's (capped) headlines.
+        graph = build_impact_graph(
+            day_news, self.llm, self.portfolio,
+            batch=self.batch, max_items=self.max_items_per_day,
+        )
         today_edges = list(graph.edges)
 
         # 2. Update memory with the new edges.
@@ -85,19 +96,42 @@ class TRRPipeline:
             n_edges=len(pruned),
         )
 
+    @staticmethod
+    def _as_date(value) -> date:
+        """Coerce a 'YYYY-MM-DD' string / datetime / date into a date."""
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        return date.fromisoformat(str(value))
+
     def run(
         self,
         news_by_day: dict[date, list],
         dates: list[date] = None,
+        start=None,
+        end=None,
     ) -> pd.DataFrame:
         """Run the pipeline over a temporal news stream.
 
         `dates` controls the evaluated days and their order; if omitted, the
         sorted keys of `news_by_day` are used. Days with no news still produce a
         prediction from the decayed memory alone (0 if memory is empty).
+
+        `start`/`end` (inclusive) optionally restrict the processed window to a
+        date range — accepts a `date`, a `datetime`, or a 'YYYY-MM-DD' string.
+        This bounds the LLM call count for a quota-cheap real run (e.g. the FTX
+        validation window) without the caller having to pre-filter `news_by_day`.
         """
         if dates is None:
             dates = sorted(news_by_day.keys())
+
+        if start is not None:
+            start_d = self._as_date(start)
+            dates = [d for d in dates if d >= start_d]
+        if end is not None:
+            end_d = self._as_date(end)
+            dates = [d for d in dates if d <= end_d]
 
         rows: list[Prediction] = []
         for step, day in enumerate(dates):

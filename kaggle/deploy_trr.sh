@@ -8,20 +8,22 @@
 # -> API -> Create New Token), chmod 600. Without it the kaggle CLI cannot
 # authenticate and every command below fails.
 #
-# IMPORTANT: before pushing, set model_sources in trr-kernel-metadata.json to the
-# chosen Nemotron model slug — see kaggle/TRR_README.md ("Setting the Nemotron
-# model"). The kernel auto-detects the model dir at runtime, but Kaggle still
-# needs model_sources to MOUNT it.
+# The Nemotron model is set in trr-kernel-metadata.json's model_sources
+# (metric/nemotron-3-nano-30b-a3b-bf16/transformers/default) and the real news is
+# attached via the oliviervha/crypto-news dataset_source — see kaggle/TRR_README.md.
+# The kernel auto-detects the model dir at runtime; Kaggle mounts it from
+# model_sources.
 #
 # Usage:
 #   bash kaggle/deploy_trr.sh            # auto: create dataset, else version it
 #   bash kaggle/deploy_trr.sh --update   # force a new dataset VERSION
 #   SRC=/some/other/data bash kaggle/deploy_trr.sh
 #
-# The synthetic sample_news.jsonl is staged as the default news file. To use a
-# REAL Kaggle crypto-news dataset instead, stage its .jsonl/.csv into data/ (or
-# attach it as another dataset_source) — the kernel's _find_news_file picks up
-# the first news file it sees, and trr.news.load_news is schema-tolerant.
+# The REAL news comes from the attached oliviervha/crypto-news dataset
+# (cryptonews.csv), listed in trr-kernel-metadata.json's dataset_sources — NOT
+# from this bundle. The bundle therefore carries only code + price CSVs. The
+# synthetic trr/sample_news.jsonl still ships inside the code/ package as the
+# kernel's SMOKE fallback.
 set -euo pipefail
 
 # --- Resolve paths (script lives in <repo>/kaggle) --------------------------
@@ -78,16 +80,14 @@ for csv in "${CSVS[@]}"; do
   echo "[stage]   + ${csv}"
 done
 
-# Copy the bundled synthetic news in as the DEFAULT news file. Replace this with
-# a real crypto-news .jsonl/.csv to use real headlines (the kernel picks up the
-# first news file under data/).
-cp "${REPO_DIR}/trr/sample_news.jsonl" "${DATA_DIR}/sample_news.jsonl"
-echo "[stage]   + sample_news.jsonl (default news)"
+# NOTE: the news is NOT staged into the bundle — the real run reads the attached
+# oliviervha/crypto-news dataset (cryptonews.csv), and the synthetic fallback
+# travels inside code/trr/sample_news.jsonl for SMOKE.
 
 # The dataset metadata must sit at the ROOT of the upload dir.
 cat > "${BUILD_DIR}/dataset-metadata.json" <<'JSON'
 {
-  "title": "Crypto TRR Bundle (code + price data + news)",
+  "title": "Crypto TRR Bundle (code + price data)",
   "id": "nguyenduongtrong/crypto-trr-bundle",
   "licenses": [
     {
@@ -133,10 +133,12 @@ cat <<'EOF'
 
 [deploy] done.
 
-Make sure model_sources in trr-kernel-metadata.json points at your chosen
-Nemotron model (see kaggle/TRR_README.md). After the kernel runs on Kaggle,
-pull its output and confirm the RTX 6000 Pro (sm_120) was allocated — NOT a
-silent P100 (sm_60) fallback:
+model_sources is set to metric/nemotron-3-nano-30b-a3b-bf16/transformers/default
+and the news is attached via the oliviervha/crypto-news dataset (see
+kaggle/TRR_README.md). The run is bounded to the FTX window by default; widen it
+with the TRR_START / TRR_END kernel env vars for the full run. After the kernel
+runs on Kaggle, pull its output and confirm the RTX 6000 Pro (sm_120) was
+allocated — NOT a silent P100 (sm_60) fallback:
 
   kaggle kernels output nguyenduongtrong/crypto-trr-nemotron -p kaggle/out
   grep -E "sm_1|compute_capability|device" kaggle/out/*.log

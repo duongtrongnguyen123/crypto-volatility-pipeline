@@ -90,6 +90,56 @@ class ReasoningLLM(ABC):
                 continue
         return edges
 
+    # --- Phase 1 (batched): daily brainstorming ---------------------------
+    def extract_impacts_batch(
+        self,
+        news_items: list[NewsItem],
+        candidate_assets: list[str],
+        max_items: int = 40,
+    ) -> list[ImpactEdge]:
+        """Extract impact edges for a whole day's news in ONE generate() call.
+
+        On a large real corpus, one LLM call per article (`extract_impacts`) is
+        prohibitively expensive — 31k articles would mean 31k generations. This
+        aggregates a day's (up to `max_items`) headlines into a single numbered
+        prompt and asks for one JSON array of impact edges; each edge carries a
+        `news_idx` that maps it back to its NewsItem for id/timestamp. Edges with
+        an out-of-range index are skipped.
+
+        Callers should pass the most relevant items first; this simply caps the
+        list at `max_items` (head/cap) so the prompt stays within budget.
+        """
+        items = news_items[:max_items]
+        if not items:
+            return []
+
+        prompt = self._impact_batch_prompt(items, candidate_assets)
+        raw = self.generate(prompt, max_new_tokens=1024)
+        data = extract_json(raw) or []
+
+        edges: list[ImpactEdge] = []
+        for d in data if isinstance(data, list) else []:
+            try:
+                idx = int(d["news_idx"])
+            except (KeyError, ValueError, TypeError):
+                continue
+            if idx < 0 or idx >= len(items):
+                continue  # clamp/skip bad indices
+            news = items[idx]
+            try:
+                edges.append(ImpactEdge(
+                    subject=str(d["subject"]).upper(),
+                    object=str(d["object"]).upper(),
+                    polarity=1 if int(d.get("polarity", -1)) >= 0 else -1,
+                    weight=max(0.0, min(1.0, float(d.get("weight", 0.5)))),
+                    timestamp=news.timestamp,
+                    source_news_id=news.id,
+                    rationale=str(d.get("rationale", "")),
+                ))
+            except (KeyError, ValueError, TypeError):
+                continue
+        return edges
+
     # --- Phase 4: Reasoning -----------------------------------------------
     def predict_crash(self, tuples: list[tuple], context: str = "") -> tuple[float, str]:
         prompt = self._reason_prompt(tuples, context)
@@ -115,6 +165,31 @@ class ReasoningLLM(ABC):
             "Return ONLY a JSON array of objects with keys: subject, object, "
             "polarity (1 positive / -1 negative), weight (0..1), rationale. "
             "Use portfolio tickers for affected assets.\n"
+        )
+
+    @staticmethod
+    def _impact_batch_prompt(news_items: list[NewsItem],
+                             candidate_assets: list[str]) -> str:
+        assets = ", ".join(candidate_assets)
+        day = news_items[0].timestamp if news_items else None
+        day_str = f"{day:%Y-%m-%d}" if day is not None else ""
+        headlines = "\n".join(
+            f"  [{i}] {item.text()}" for i, item in enumerate(news_items)
+        )
+        return (
+            "You are a financial analyst building an impact graph for crypto "
+            "portfolio crash detection. Below are the crypto news headlines for "
+            f"a single day ({day_str}), each prefixed with a numeric index in "
+            "square brackets.\n"
+            f"Portfolio assets: {assets}\n\n"
+            f"Headlines:\n{headlines}\n\n"
+            "For EVERY headline that implies an impact on a portfolio asset, "
+            "emit one or more directed impact relations toward that asset. "
+            "Return ONLY a single JSON array of objects, each with keys: "
+            "news_idx (the bracketed index of the source headline), subject, "
+            "object, polarity (1 positive / -1 negative), weight (0..1), "
+            "rationale. Use portfolio tickers for affected assets. Omit "
+            "headlines with no portfolio impact.\n"
         )
 
     @staticmethod
@@ -173,6 +248,21 @@ class MockLLM(ReasoningLLM):
                 source_news_id=news.id,
                 rationale=f"lexicon neg={neg} pos={pos}",
             ))
+        return edges
+
+    def extract_impacts_batch(
+        self,
+        news_items: list[NewsItem],
+        candidate_assets: list[str],
+        max_items: int = 40,
+    ) -> list[ImpactEdge]:
+        """Deterministic batched brainstorming: loop the per-item heuristic over
+        the (capped) day's items and concatenate. Keeps the mock fast and stable
+        while exercising the same batched code path as the real backend.
+        """
+        edges: list[ImpactEdge] = []
+        for news in news_items[:max_items]:
+            edges.extend(self.extract_impacts(news, candidate_assets))
         return edges
 
     def predict_crash(self, tuples: list[tuple], context: str = "") -> tuple[float, str]:

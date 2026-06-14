@@ -41,9 +41,35 @@ KAGGLE_WORKING = "/kaggle/working"
 # Off-Kaggle smoke paths (CPU).
 SMOKE_OUT_DIR = "/tmp/trr_smoke_out"
 
+# Local copy of the real Olivier Vha crypto-news CSV (used by SMOKE if present).
+LOCAL_NEWS_CSV = "data/news_raw/oliviervha/cryptonews.csv"
+
+# Default REAL-run date window: the FTX collapse (Nov 2022). Bounding the first
+# real run to ~75 days keeps the LLM call count (and RTX 6000 Pro quota) cheap;
+# widen via TRR_START / TRR_END for the full 2022-01..2023-07 run (see README).
+DEFAULT_START = "2022-10-01"
+DEFAULT_END = "2022-12-15"
+# A tiny window for the SMOKE run so it finishes fast on CPU.
+SMOKE_START = "2022-11-05"
+SMOKE_END = "2022-11-12"
+
+# Cap on headlines fed to ONE daily brainstorm call.
+MAX_ITEMS_PER_DAY = 40
+
 
 def _is_smoke() -> bool:
     return os.environ.get("SMOKE", "0") == "1"
+
+
+def _date_window(smoke: bool) -> tuple[str, str]:
+    """Resolve the (start, end) date window from TRR_START / TRR_END env vars."""
+    if smoke:
+        start = os.environ.get("TRR_START", SMOKE_START)
+        end = os.environ.get("TRR_END", SMOKE_END)
+    else:
+        start = os.environ.get("TRR_START", DEFAULT_START)
+        end = os.environ.get("TRR_END", DEFAULT_END)
+    return start, end
 
 
 # --------------------------------------------------------------------------- #
@@ -77,20 +103,35 @@ def _find_kaggle_mount() -> tuple[str, str]:
 
 
 def _find_news_file(data_dir: str) -> str:
-    """Find a news file (.jsonl/.csv) in the staged data dir.
+    """Find the news file for the run.
 
-    Prefers an explicit *news* file; falls back to the bundled sample_news.jsonl
-    that deploy_trr.sh copies in. A real Kaggle crypto-news dataset can be staged
-    here instead and will be picked up automatically.
+    The REAL run uses the attached `oliviervha/crypto-news` dataset, which mounts
+    at /kaggle/input/crypto-news/cryptonews.csv — so we glob /kaggle/input for any
+    *cryptonews*.csv / *crypto*news*.csv first. Failing that (or off-Kaggle), we
+    fall back to a *news* file in the staged bundle data dir, then the bundled
+    sample_news.jsonl that deploy_trr.sh copies in.
     """
-    patterns = ("*news*.jsonl", "*news*.csv", "sample_news.jsonl", "*.jsonl")
-    for pat in patterns:
+    input_patterns = (
+        "/kaggle/input/**/*cryptonews*.csv",
+        "/kaggle/input/**/*crypto*news*.csv",
+        "/kaggle/input/**/*crypto-news*.csv",
+    )
+    for pat in input_patterns:
+        hits = sorted(glob.glob(pat, recursive=True))
+        if hits:
+            return hits[0]
+
+    data_patterns = ("*cryptonews*.csv", "*news*.csv", "*news*.jsonl",
+                     "sample_news.jsonl", "*.jsonl")
+    for pat in data_patterns:
         hits = sorted(glob.glob(os.path.join(data_dir, pat)))
         if hits:
             return hits[0]
+
     raise FileNotFoundError(
-        f"No news file (.jsonl/.csv) found under {data_dir}. deploy_trr.sh copies "
-        "trr/sample_news.jsonl into data/ as the default news file."
+        "No news file found. Attach the oliviervha/crypto-news dataset "
+        "(cryptonews.csv) to the kernel, or stage a *news* file into the bundle "
+        f"data dir ({data_dir})."
     )
 
 
@@ -204,20 +245,38 @@ def main() -> int:
     print(f"[kernel] HISTORICAL_DIR={os.environ['HISTORICAL_DIR']}")
 
     # Import the project code only AFTER sys.path + env are set.
-    from trr.evaluate import evaluate
     from trr.llm import MockLLM
     from trr.news import group_by_day, load_news, load_sample_news
     from trr.pipeline import TRRPipeline
 
     dtype = _gpu_diagnostics_and_gate()
 
+    start, end = _date_window(smoke)
+    print(f"[kernel] date window: {start} .. {end}  (TRR_START/TRR_END)")
+
+    # --- Resolve the news source ------------------------------------------ #
+    # Real run: the attached oliviervha/crypto-news CSV. SMOKE: the same CSV
+    # locally if present, else the bundled synthetic sample.
+    if smoke:
+        local_csv = os.path.join(code_dir, LOCAL_NEWS_CSV)
+        if os.path.isfile(local_csv):
+            news_path = local_csv
+            news = load_news(news_path)
+            print(f"[kernel] SMOKE: using local real news CSV -> {news_path}")
+        else:
+            news_path = None
+            news = load_sample_news()
+            print("[kernel] SMOKE: local news CSV absent — using bundled "
+                  "sample_news.jsonl")
+    else:
+        news_path = _find_news_file(data_dir)
+        news = load_news(news_path)
+        print(f"[kernel] news file: {news_path}")
+
     # --- Build the LLM backend -------------------------------------------- #
     if smoke:
-        # Off-Kaggle CPU: deterministic mock backend over the bundled sample.
-        print("[kernel] SMOKE: using MockLLM + bundled sample_news.jsonl")
+        print("[kernel] SMOKE: using deterministic MockLLM backend")
         llm = MockLLM()
-        news = load_sample_news()
-        news_path = None  # evaluate() will reload the sample itself.
     else:
         from trr.llm import HFReasoningLLM
 
@@ -232,30 +291,49 @@ def main() -> int:
         print(f"[kernel] Nemotron model dir: {model_dir}")
         llm = HFReasoningLLM(model_path=model_dir, dtype=dtype)
 
-        news_path = _find_news_file(data_dir)
-        print(f"[kernel] news file: {news_path}")
-        news = load_news(news_path)
-
-    # --- Run the pipeline -> daily predictions ---------------------------- #
+    # --- Run the BATCHED pipeline -> daily predictions -------------------- #
+    # Batched brainstorming: ONE LLM call per day (not per article). Over the
+    # bounded window that is ~75 days x (1 brainstorm + 1 reason) generations —
+    # feasible on the RTX 6000 Pro quota; per-article on 31k news would not be.
     by_day = group_by_day(news)
     print(f"[kernel] news items={len(news)}  days_with_news={len(by_day)}")
-    pipe = TRRPipeline(llm=llm)
-    preds = pipe.run(by_day)
+
+    days = [d for d in sorted(by_day.keys())
+            if str(start) <= str(d) <= str(end)]
+    print(f"[kernel] processing {len(days)} day(s) in window "
+          f"(batched, max_items_per_day={MAX_ITEMS_PER_DAY})")
+
+    pipe = TRRPipeline(llm=llm, batch=True, max_items_per_day=MAX_ITEMS_PER_DAY)
+
+    # Step day-by-day so the Kaggle log shows liveness (day index / total).
+    rows = []
+    for i, day in enumerate(days, 1):
+        pred = pipe._step(i - 1, by_day.get(day, []), day)
+        rows.append((day, pred))
+        print(f"[kernel]   day {i}/{len(days)}  {day}  "
+              f"n_news={pred.n_news}  crash_prob={pred.crash_prob:.3f}",
+              flush=True)
+
+    import pandas as pd
+
+    preds = pd.DataFrame(
+        {
+            "crash_prob": [p.crash_prob for _, p in rows],
+            "label": [p.label for _, p in rows],
+            "n_news": [p.n_news for _, p in rows],
+            "n_edges": [p.n_edges for _, p in rows],
+            "rationale": [p.rationale for _, p in rows],
+        },
+        index=pd.Index([d for d, _ in rows], name="day"),
+    )
 
     preds_path = os.path.join(out_dir, "trr_predictions.csv")
     preds.to_csv(preds_path)
     print(f"[kernel] wrote daily predictions -> {preds_path} ({len(preds)} rows)")
 
-    # --- Evaluate vs real labels + baselines (same Nemotron backend) ------ #
-    # evaluate() re-runs the pipeline internally with this llm so its predictions
-    # and metrics are self-consistent; it also writes trr/eval_results.json.
-    results = evaluate(
-        news_path=news_path,
-        llm=llm,
-        out_dir=out_dir,
-    )
+    # --- Evaluate vs real labels (inline AUROC over the window) ----------- #
+    results = _evaluate_window(preds, out_dir)
 
-    # Surface the eval json into the output dir under a stable name too.
     import json
 
     eval_path = os.path.join(out_dir, "eval_results.json")
@@ -263,9 +341,98 @@ def main() -> int:
         json.dump(results, fh, indent=2, sort_keys=True)
     print(f"[kernel] wrote eval results -> {eval_path}")
 
-    trr_auroc = results["metrics"]["TRR"].get("auroc")
-    print(f"[kernel] done. TRR AUROC={trr_auroc}")
+    print(f"[kernel] done. TRR AUROC={results['metrics']['TRR'].get('auroc')}  "
+          f"window={results['summary']['date_start']}.."
+          f"{results['summary']['date_end']}  "
+          f"crash_days={results['summary']['n_crash_days']}")
     return 0
+
+
+def _evaluate_window(preds, out_dir: str) -> dict:
+    """Score the windowed predictions against the real crash labels.
+
+    Aligns the daily `crash_prob` to `trr.labels.crash_labels` on the overlapping
+    days and computes AUROC / PR-AUC (when both classes are present) plus the base
+    rate. A timeline plot is written when matplotlib is available. Self-contained
+    so the windowed real run does not re-run the whole pipeline via evaluate().
+    """
+    import numpy as np
+    import pandas as pd
+
+    from trr.labels import crash_labels
+
+    labels = crash_labels()
+    pred_s = pd.Series(
+        preds["crash_prob"].to_numpy(dtype=float),
+        index=[d for d in preds.index], name="crash_prob",
+    )
+    label_s = pd.Series(
+        labels["crash"].to_numpy(dtype=int),
+        index=[ts.date() for ts in labels.index], name="crash",
+    )
+    aligned = pd.concat([pred_s, label_s], axis=1, join="inner").dropna()
+    aligned = aligned.sort_index()
+
+    y_true = aligned["crash"].to_numpy(dtype=int)
+    score = aligned["crash_prob"].to_numpy(dtype=float)
+    n_classes = len(np.unique(y_true)) if len(y_true) else 0
+
+    auroc = pr_auc = None
+    if n_classes == 2:
+        from sklearn.metrics import average_precision_score, roc_auc_score
+
+        auroc = float(roc_auc_score(y_true, score))
+        pr_auc = float(average_precision_score(y_true, score))
+    else:
+        print("[eval] aligned window is single-class — AUROC/PR-AUC skipped.")
+
+    days = list(aligned.index)
+    summary = {
+        "n_days": len(days),
+        "date_start": str(days[0]) if days else None,
+        "date_end": str(days[-1]) if days else None,
+        "n_crash_days": int(y_true.sum()) if len(y_true) else 0,
+        "base_rate": float(y_true.mean()) if len(y_true) else 0.0,
+        "single_class_window": n_classes < 2,
+    }
+    print(f"[eval] aligned {summary['n_days']} day(s)  "
+          f"crash_days={summary['n_crash_days']}  "
+          f"base_rate={summary['base_rate']:.3f}  AUROC={auroc}")
+
+    # Timeline plot (best-effort).
+    timeline_path = None
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(11, 4))
+        ax.plot(days, score, color="#1f77b4", lw=1.6, label="TRR crash_prob")
+        first = True
+        for d, c in zip(days, y_true):
+            if c == 1:
+                ax.axvspan(d, d, color="#d62728", alpha=0.35, lw=3,
+                           label="real crash day" if first else None)
+                first = False
+        ax.set_ylim(0, 1.02)
+        ax.set_ylabel("crash probability")
+        ax.set_title("TRR daily crash probability vs real crash days (window)")
+        ax.legend(loc="upper left", fontsize=8)
+        fig.autofmt_xdate()
+        fig.tight_layout()
+        timeline_path = os.path.join(out_dir, "trr_timeline.png")
+        fig.savefig(timeline_path, dpi=120)
+        plt.close(fig)
+        print(f"[eval] timeline plot -> {timeline_path}")
+    except Exception as exc:  # pragma: no cover
+        print(f"[eval] timeline plot skipped ({exc})")
+
+    return {
+        "summary": summary,
+        "metrics": {"TRR": {"auroc": auroc, "pr_auc": pr_auc}},
+        "artifacts": {"timeline_plot": timeline_path},
+    }
 
 
 if __name__ == "__main__":
