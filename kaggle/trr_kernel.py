@@ -75,55 +75,76 @@ def _date_window(smoke: bool) -> tuple[str, str]:
 # --------------------------------------------------------------------------- #
 # Mount discovery.
 # --------------------------------------------------------------------------- #
+def _diagnose_input() -> None:
+    """Print what is actually mounted under /kaggle/input (for debugging mounts)."""
+    print("[mount] listing /kaggle/input (depth<=3):", flush=True)
+    root = "/kaggle/input"
+    if not os.path.isdir(root):
+        print("[mount]   /kaggle/input does not exist!", flush=True)
+        return
+    for dirpath, dirnames, filenames in os.walk(root):
+        depth = dirpath[len(root):].count(os.sep)
+        if depth > 3:
+            dirnames[:] = []
+            continue
+        print(f"[mount]   {dirpath}/  ({len(dirnames)} dirs, {len(filenames)} files)",
+              flush=True)
+        for f in filenames[:6]:
+            print(f"[mount]       {f}", flush=True)
+
+
 def _find_kaggle_mount() -> tuple[str, str]:
-    """Locate the staged code + data dirs on Kaggle.
+    """Locate the staged code + data dirs anywhere under /kaggle/input.
 
-    Returns (code_dir, data_dir). The dataset slug is unknown ahead of time, so
-    glob for any */code under /kaggle/input that contains the `trr/` package.
-
-    The bundle is uploaded with `--dir-mode zip` (Kaggle skips bare subdirs
-    otherwise), so on the mount the subdirs may appear as `code.zip` / `data.zip`
-    rather than extracted folders. If so, extract them to a writable temp dir.
+    Robust to mount nesting and to `--dir-mode zip` (extract code.zip/data.zip
+    if the tree isn't already extracted). Strategy: recursively find the `trr`
+    package (a dir containing pipeline.py) for the code dir, and the price CSVs
+    for the data dir.
     """
-    # 1. Already-extracted code/ dir.
-    for cand in sorted(glob.glob("/kaggle/input/*/code")):
-        if os.path.isdir(os.path.join(cand, "trr")):
-            mount = os.path.dirname(cand)
-            data_dir = os.path.join(mount, "data")
-            if os.path.isdir(data_dir):
-                return cand, data_dir
-
-    # 2. Zipped subdirs (code.zip + data.zip) -> extract to /tmp.
     import zipfile
 
-    for code_zip in sorted(glob.glob("/kaggle/input/*/code.zip")):
-        mount = os.path.dirname(code_zip)
-        dest = "/tmp/trr_bundle"
-        os.makedirs(dest, exist_ok=True)
-        with zipfile.ZipFile(code_zip) as zf:
-            zf.extractall(os.path.join(dest, "code"))
-        data_zip = os.path.join(mount, "data.zip")
-        if os.path.exists(data_zip):
-            with zipfile.ZipFile(data_zip) as zf:
-                zf.extractall(os.path.join(dest, "data"))
-        # The zip may contain the dir contents directly, or a nested code/ dir.
-        code_dir = os.path.join(dest, "code")
-        if not os.path.isdir(os.path.join(code_dir, "trr")):
-            inner = os.path.join(code_dir, "code")
-            if os.path.isdir(os.path.join(inner, "trr")):
-                code_dir = inner
-        data_dir = os.path.join(dest, "data")
-        inner_data = os.path.join(data_dir, "data")
-        if os.path.isdir(inner_data):
-            data_dir = inner_data
-        if os.path.isdir(os.path.join(code_dir, "trr")):
-            return code_dir, data_dir
+    # If the bundle came as zips, extract them first so the recursive search hits.
+    for z in glob.glob("/kaggle/input/**/code.zip", recursive=True):
+        try:
+            with zipfile.ZipFile(z) as zf:
+                zf.extractall("/tmp/trr_bundle/code")
+        except Exception:
+            pass
+    for z in glob.glob("/kaggle/input/**/data.zip", recursive=True):
+        try:
+            with zipfile.ZipFile(z) as zf:
+                zf.extractall("/tmp/trr_bundle/data")
+        except Exception:
+            pass
 
-    raise FileNotFoundError(
-        "Could not find the staged code (trr/ package) under /kaggle/input/*/code "
-        "or /kaggle/input/*/code.zip. Did the crypto-trr-bundle dataset get "
-        "attached to the kernel?"
-    )
+    search_roots = ["/kaggle/input", "/tmp/trr_bundle"]
+
+    # code_dir = parent of the trr/ package (identified by trr/pipeline.py).
+    code_dir = None
+    for root in search_roots:
+        hits = sorted(glob.glob(f"{root}/**/trr/pipeline.py", recursive=True))
+        if hits:
+            code_dir = os.path.dirname(os.path.dirname(hits[0]))
+            break
+
+    # data_dir = dir holding the price CSVs.
+    data_dir = None
+    for root in search_roots:
+        hits = sorted(glob.glob(f"{root}/**/BTCUSDT_5min_long.csv", recursive=True))
+        if hits:
+            data_dir = os.path.dirname(hits[0])
+            break
+
+    if code_dir is None or data_dir is None:
+        _diagnose_input()
+        raise FileNotFoundError(
+            f"Could not locate staged bundle (code_dir={code_dir}, "
+            f"data_dir={data_dir}). Is nguyenduongtrong/crypto-trr-bundle "
+            "attached to the kernel and fully processed?"
+        )
+    print(f"[mount] code_dir={code_dir}", flush=True)
+    print(f"[mount] data_dir={data_dir}", flush=True)
+    return code_dir, data_dir
 
 
 def _find_news_file(data_dir: str) -> str:
