@@ -1,6 +1,6 @@
 {
   "id": "nguyenduongtrong/crypto-trr-nemotron",
-  "title": "Crypto TRR Crash Detection (Nemotron, RTX 6000 Pro)",
+  "title": "Crypto TRR Nemotron",
   "code_file": "trr_kernel.py",
   "language": "python",
   "kernel_type": "script",
@@ -18,6 +18,6 @@
   ],
   "kernel_sources": [],
   "model_sources": [
-    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
+    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default/1"
   ]
 }
