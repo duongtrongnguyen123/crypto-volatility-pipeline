@@ -1,0 +1,11 @@
+{
+  "id": "hduong/crypto-trr-sc-qwen-k3",
+  "title": "crypto-trr-sc-qwen-k3",
+  "code_file": "sc_qwen_k3.py",
+  "language": "python", "kernel_type": "script",
+  "is_private": true, "enable_gpu": true, "enable_internet": false,
+  "machine_shape": "NvidiaRtxPro6000",
+  "competition_sources": ["nvidia-nemotron-model-reasoning-challenge"],
+  "dataset_sources": ["hduong/crypto-portfolio-prices", "oliviervha/crypto-news"],
+  "kernel_sources": [], "model_sources": ["qwen-lm/qwen2.5/transformers/32b-instruct/1"]
+}
