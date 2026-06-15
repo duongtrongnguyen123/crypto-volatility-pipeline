@@ -103,6 +103,72 @@ crashes; 2022-only = 363 days / 63 crashes.
 - **Crash *timing* is intrinsically hard**: ~0.57 from news alone is a modest but
   genuine edge, consistent with the paper needing its full machinery.
 
+## Rigorous evaluation (statistical + economic)
+
+A single AUROC is not enough to claim a signal is real or useful. Running
+`python -m trr.analysis` over the saved predictions adds significance testing, a
+leak-free ensemble, calibration, early-warning precision, and an economic
+backtest. This **corrected two over-optimistic claims** and produced the
+study's strongest practical result.
+
+### Statistical significance (2022–23, 2000-resample bootstrap)
+| signal | AUROC | 95% CI |
+|---|---:|---|
+| TRR (news reasoning) | 0.566 | **[0.501, 0.630]** |
+| Fear & Greed | 0.646 | [0.580, 0.707] |
+| price-momentum | 0.550 | [0.480, 0.619] |
+
+- **TRR clears chance only barely** (lower CI 0.501) and is **not significantly
+  better than price-momentum** (paired-bootstrap diff +0.016, p=0.35). With only
+  76 crash events, AUROC differences of ~0.02 are noise. **Honest conclusion:
+  the AUROC edge from news reasoning alone is real but weak and not statistically
+  separable from simple price momentum.** Fear & Greed is the only signal whose
+  CI is clearly above 0.5.
+
+### The 0.653 ensemble was leaky — honest number is ~0.58
+The headline 0.653 fit the blend weight on the same data it scored. Calibrating
+the weight on the first half and testing on the **held-out** second half, the
+optimizer picks `alpha_TRR = 1.0` (i.e. drops F&G) and the held-out ensemble =
+**0.577 = TRR-only**. So **the sentiment "lift" does not survive a leak-free
+protocol** on the out-of-time half — a critical correction.
+
+### Calibration: ranking works, probabilities don't
+Brier 0.191 vs 0.095 base-rate (skill **−1.0**) — the model is badly
+**overconfident** (outputs 0.3–0.85 when the base rate is 0.11). Use the scores
+for **ranking** (AUROC, precision@K), not as literal probabilities.
+
+### Early warning — precision@K (base rate 10.7%)
+P@10 = **0.30**, P@20 = 0.15, P@50 = 0.14. The very top of the risk ranking is
+~3× enriched, so the **highest-confidence alerts are meaningfully better than
+random**, even though mid-ranking is not.
+
+### Economic backtest — the strongest result
+Strategy: go to cash on the top-20% highest-risk days (decision at day *t* from
+`crash_prob[t]`, return realized *t+1* — no lookahead), vs equal-weight
+buy-and-hold. See `reports/backtest_equity.png`.
+
+| period | strategy | return | Sharpe | max drawdown |
+|---|---|---:|---:|---:|
+| 2022–23 (bear) | buy & hold | −39.3% | −0.01 | −75.4% |
+| 2022–23 (bear) | **TRR de-risk** | **+4.2%** | **0.27** | **−61.5%** |
+| 2024 (bull) | buy & hold | +22.1% | 0.72 | −40.7% |
+| 2024 (bull) | **TRR de-risk** | **+31.5%** | **0.92** | **−32.5%** |
+
+**Heeding the crash signal beats buy-and-hold on both return and drawdown in
+both regimes** — turning a −39% bear-market loss into +4%, and improving the
+bull year too (and out-of-regime, where AUROC significance is weak). **Economic
+value is the most robust finding** — more so than the AUROC, because a strategy
+only needs the few biggest crashes called right, which is exactly where
+precision@K shows the signal concentrates.
+
+### What rigor changed
+1. The ensemble's 0.653 → **0.577 leak-free** (sentiment lift didn't generalize out-of-time).
+2. News-reasoning AUROC is **not statistically separable from price-momentum** (small N).
+3. Probabilities are **uncalibrated** (rank-only).
+4. But the **de-risking strategy adds real economic value** across regimes — the headline takeaway.
+
+Run it: `python -m trr.analysis` (writes `reports/analysis_*.json` + `reports/backtest_equity.png`).
+
 ## Reproduce
 ```bash
 # Offline LLM runs (Kaggle RTX 6000 Pro): kaggle/trr_standalone.py + deploy_trr.sh

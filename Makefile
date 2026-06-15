@@ -38,6 +38,7 @@ help:
 	@echo "TRR (LLM temporal-relational reasoning — the assignment):"
 	@echo "  make trr-labels         show portfolio crash labels (real crashes)"
 	@echo "  make trr-eval           run TRR pipeline + AUROC vs baselines (MockLLM)"
+	@echo "  make trr-analyze        rigorous eval: bootstrap CI, backtest, calibration"
 	@echo "  make trr-deploy         deploy zero-shot Nemotron TRR run to Kaggle GPU"
 	@echo "Kaggle (RTX 6000 Pro GPU):"
 	@echo "  make kaggle-deploy      LSTM: stage data+code, push dataset + kernel"
@@ -106,6 +107,9 @@ test:
 # --- TRR (LLM temporal-relational reasoning) ---
 trr-labels:
 	python -m trr.labels
+
+trr-analyze:
+	python -m trr.analysis
 
 trr-eval:
 	python -m trr.evaluate

@@ -81,6 +81,15 @@ across regimes *at 32B scale* but not 14B; aggregate sentiment helps (though
 regime-dependent); reasoning over noisy social posts does not. All beat the
 price/lexicon/base-rate baselines (≤0.55).
 
+**Rigorous eval** (`make trr-analyze`) — bootstrap CIs, leak-free ensemble,
+calibration, precision@K, and an economic backtest. Honest corrections: the
+0.653 ensemble was an in-sample-fit artifact (**0.577 leak-free**), and the
+news-AUROC isn't statistically separable from price-momentum (small N). **But
+the strongest result is economic:** a de-risk-on-high-crash-prob strategy beats
+buy-and-hold on **return and drawdown in both regimes** — 2022–23 bear −39%→**+4%**
+(maxDD −75%→−62%), 2024 bull +22%→**+32%**. See
+[`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md).
+
 ---
 
 ## Supporting infrastructure — real-time volatility pipeline

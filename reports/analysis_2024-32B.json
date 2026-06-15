@@ -1,0 +1,55 @@
+{
+  "label": "2024-32B (out-of-regime)",
+  "n_days": 284,
+  "n_crash": 19,
+  "auroc_ci": {
+    "TRR (news reasoning)": [
+      0.5798411122144985,
+      0.45083664349553126,
+      0.7042825223435947
+    ],
+    "Fear&Greed": [
+      0.45958291956305863,
+      0.3448584905660377,
+      0.5752159880834159
+    ],
+    "price-momentum": [
+      0.5364448857994042,
+      0.4021698113207547,
+      0.6659384309831181
+    ]
+  },
+  "trr_vs_price_p": 0.2495,
+  "leakfree_ensemble": {
+    "alpha_trr": 1.0,
+    "cal_auroc": 0.6132275132275132,
+    "test_auroc_ensemble": 0.5580128205128205,
+    "test_auroc_trr_only": 0.5580128205128205,
+    "cal_days": 142,
+    "test_days": 142
+  },
+  "calibration": {
+    "brier": 0.1432394366197183,
+    "brier_baserate": 0.06242560999801628,
+    "skill_score": -1.2945620655412107
+  },
+  "precision_at_k": {
+    "P@10": 0.1,
+    "P@20": 0.05,
+    "P@50": 0.04,
+    "base_rate": 0.06690140845070422
+  },
+  "backtest": {
+    "strategy": {
+      "total_return": 0.31475931058954143,
+      "sharpe": 0.9152918891614591,
+      "max_drawdown": -0.32548763948676973
+    },
+    "buy_hold": {
+      "total_return": 0.2205180381983085,
+      "sharpe": 0.7202698812714476,
+      "max_drawdown": -0.4065165525233435
+    },
+    "time_in_market": 0.676056338028169
+  }
+}
