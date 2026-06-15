@@ -1,5 +1,5 @@
 {
-  "id": "nguyenduongtrong/crypto-trr-selfconsist",
+  "id": "nguyenduongtrong/crypto-trr-self-consistency-r1",
   "title": "Crypto TRR Self Consistency R1",
   "code_file": "selfconsist_r1.py",
   "language": "python", "kernel_type": "script",

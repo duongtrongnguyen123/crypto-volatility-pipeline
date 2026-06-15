@@ -22,7 +22,7 @@ from datetime import date, datetime
 import numpy as np
 import pandas as pd
 
-BUILD_TAG = "selfconsist-r1-32b"
+BUILD_TAG = "selfconsist-r1-v2"
 
 
 class config:  # shim: only HISTORICAL_DIR is referenced by the inlined code
@@ -1743,7 +1743,7 @@ PER_ASSET = False
 REASON_SAMPLES = 3
 REASON_TEMP = 0.6
 REASON_MAXTOK = 1024
-BRAINSTORM_MAXTOK = 1024
+BRAINSTORM_MAXTOK = 2048
 
 
 def _is_smoke():
