@@ -42,6 +42,10 @@ class TRRPipeline:
         max_items_per_day: int = 40,
         cross_batch: bool = False,
         per_asset: bool = False,
+        reason_samples: int = 1,
+        reason_temp: float = 0.0,
+        reason_max_new_tokens: int = 256,
+        brainstorm_max_new_tokens: int = 768,
     ) -> None:
         self.llm = llm if llm is not None else MockLLM()
         self.lam = lam
@@ -60,6 +64,13 @@ class TRRPipeline:
         self.cross_batch = cross_batch
         # per_asset: emit a crash probability per portfolio asset (cross_batch).
         self.per_asset = per_asset
+        # Self-consistency: sample reason_samples reasoning traces at reason_temp
+        # and average (test-time compute scaling). reason_max_new_tokens is large
+        # for reasoning models that emit a <think> trace.
+        self.reason_samples = reason_samples
+        self.reason_temp = reason_temp
+        self.reason_max_new_tokens = reason_max_new_tokens
+        self.brainstorm_max_new_tokens = brainstorm_max_new_tokens
         # Memory edges are carried into reasoning only while still salient; with
         # the exponential decay this lets a quiet day shed stale negatives so the
         # crash signal genuinely fades over time.
@@ -118,6 +129,7 @@ class TRRPipeline:
         # Phase A — batched brainstorming.
         edges_per_day = self.llm.brainstorm_multi(
             day_news, self.portfolio, max_items=self.max_items_per_day,
+            max_new_tokens=self.brainstorm_max_new_tokens,
         )
 
         # Phase B — sequential memory/attention to build each day's reason input.
@@ -147,7 +159,10 @@ class TRRPipeline:
                 ))
             return rows
 
-        results = self.llm.reason_multi(tuples_list, contexts)
+        results = self.llm.reason_multi(
+            tuples_list, contexts, max_new_tokens=self.reason_max_new_tokens,
+            n_samples=self.reason_samples, temperature=self.reason_temp,
+        )
         rows = []
         for d, (prob, rationale), ne, dn in zip(dates, results, n_edges, day_news):
             ts = datetime(d.year, d.month, d.day)

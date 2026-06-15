@@ -36,6 +36,10 @@ _POS = {
 
 def extract_json(text: str):
     """Best-effort extraction of the first JSON object/array in `text`."""
+    # Reasoning models (R1 / QwQ) emit a <think>...</think> trace before the
+    # answer — parse only what comes after it.
+    if "</think>" in text:
+        text = text.rsplit("</think>", 1)[-1]
     # Try fenced block first.
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
     candidate = fence.group(1) if fence else text
@@ -286,19 +290,36 @@ class ReasoningLLM(ABC):
         return [self._parse_batch_edges(raw, items) for items, raw in zip(capped, raws)]
 
     def reason_multi(self, tuples_list: list[list[tuple]], contexts: list[str],
-                    max_new_tokens: int = 256) -> list[tuple[float, str]]:
-        """Batched Reasoning: one prompt per day, all generated together."""
+                    max_new_tokens: int = 256, n_samples: int = 1,
+                    temperature: float = 0.0) -> list[tuple[float, str]]:
+        """Batched Reasoning. With n_samples>1 and temperature>0 this does
+        SELF-CONSISTENCY: sample several reasoning traces per day and average the
+        crash probabilities (test-time compute scaling)."""
         prompts = [self._reason_prompt(t, c) for t, c in zip(tuples_list, contexts)]
-        raws = self.generate_batch(prompts, max_new_tokens=max_new_tokens)
-        out: list[tuple[float, str]] = []
-        for raw in raws:
+
+        def parse(raw):
             data = extract_json(raw) or {}
             try:
-                prob = float(data.get("crash_prob", 0.0))
+                return max(0.0, min(1.0, float(data.get("crash_prob", 0.0)))), str(data.get("rationale", ""))
             except (TypeError, ValueError):
-                prob = 0.0
-            out.append((max(0.0, min(1.0, prob)), str(data.get("rationale", ""))))
-        return out
+                return 0.0, ""
+
+        if n_samples <= 1:
+            return [parse(r) for r in self.generate_batch(prompts, max_new_tokens=max_new_tokens)]
+
+        # Self-consistency: K sampled passes, average the probabilities.
+        sample_probs = [[] for _ in prompts]
+        last_rat = ["" for _ in prompts]
+        for _ in range(n_samples):
+            raws = self.generate_batch(prompts, max_new_tokens=max_new_tokens,
+                                       temperature=temperature)
+            for i, r in enumerate(raws):
+                p, rat = parse(r)
+                sample_probs[i].append(p)
+                if rat:
+                    last_rat[i] = rat
+        return [(sum(ps) / len(ps) if ps else 0.0, last_rat[i])
+                for i, ps in enumerate(sample_probs)]
 
     def reason_multi_per_asset(self, tuples_list: list[list[tuple]], contexts: list[str],
                               assets: list[str], max_new_tokens: int = 320) -> list[dict]:
@@ -413,7 +434,8 @@ class MockLLM(ReasoningLLM):
         return [self.extract_impacts_batch(items, candidate_assets, max_items)
                 for items in day_items_list]
 
-    def reason_multi(self, tuples_list, contexts, max_new_tokens=256):
+    def reason_multi(self, tuples_list, contexts, max_new_tokens=256,
+                    n_samples=1, temperature=0.0):
         return [self.predict_crash(t, c) for t, c in zip(tuples_list, contexts)]
 
     def reason_multi_per_asset(self, tuples_list, contexts, assets, max_new_tokens=320):

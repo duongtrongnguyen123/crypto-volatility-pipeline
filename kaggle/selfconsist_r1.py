@@ -22,7 +22,7 @@ from datetime import date, datetime
 import numpy as np
 import pandas as pd
 
-BUILD_TAG = "standalone-v4-32b-fewshot"
+BUILD_TAG = "selfconsist-r1-32b"
 
 
 class config:  # shim: only HISTORICAL_DIR is referenced by the inlined code
@@ -1729,21 +1729,21 @@ SMOKE_OUT_DIR = "/tmp/trr_smoke_out"
 LOCAL_NEWS_CSV = "data/news_raw/oliviervha/cryptonews.csv"
 # Full window: the overlap of the news corpus (2021-10..2023-12) with the price
 # labels (from 2022-01) — covers LUNA (May 2022), 3AC, FTX (Nov 2022), and 2023.
-DEFAULT_START, DEFAULT_END = "2022-01-01", "2023-12-15"
+DEFAULT_START, DEFAULT_END = "2022-01-01", "2022-12-31"
 SMOKE_START, SMOKE_END = "2022-11-05", "2022-11-12"
 MAX_ITEMS_PER_DAY = 20
 # Qwen2.5-32B is ~65GB in bf16; use a smaller generation batch + bounded input
 # so KV cache fits alongside the weights on the 102GB card.
-GEN_BATCH_SIZE = 8
+GEN_BATCH_SIZE = 6
 MAX_INPUT_TOKENS = 2048
 LAM = 0.6
 TOP_K = 30
 PER_ASSET = False
 # Self-consistency (test-time scaling): K sampled reasoning traces averaged.
-REASON_SAMPLES = 1
-REASON_TEMP = 0.0
-REASON_MAXTOK = 256
-BRAINSTORM_MAXTOK = 768
+REASON_SAMPLES = 3
+REASON_TEMP = 0.6
+REASON_MAXTOK = 1024
+BRAINSTORM_MAXTOK = 1024
 
 
 def _is_smoke():

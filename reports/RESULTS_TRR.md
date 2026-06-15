@@ -229,6 +229,32 @@ better.
 forward) cut the held-out Brier score from 0.199 → 0.048. Conformal flagging at a
 20% alarm budget recovers 27% of crashes. Use the scores calibrated, for ranking.
 
+### Graph Attention Network on the asset-relational graph (`trr/gnn.py`)
+We *learn* the relational step (which the pipeline hand-codes via PageRank): a
+2-layer GAT message-passes across a 6-asset graph (edges = return correlation
+> 0.3), node features `[per-asset LLM prob, return, volatility, F&G]`, trained
+walk-forward to predict each asset's crash.
+
+| (walk-forward, same test) | macro AUROC |
+|---|---:|
+| raw per-asset LLM signal | 0.534 |
+| **learned GAT** | **0.444** |
+
+The GAT **underperforms the raw LLM signal** — again, learned propagation overfits
+the few crash events under regime shift.
+
+### Meta-finding across the advanced techniques
+Both learned downstream models — the **stacking meta-learner** and the **GNN** —
+**underperform the raw zero-shot LLM signal** (and a fixed convex blend). The
+zero-shot LLM is robust *precisely because it is not fit to the non-stationary
+training data*. At this scale (≤76 crash events) and with regime shift,
+**learned capacity is counterproductive**; the wins come from (a) the LLM's
+zero-shot reasoning, (b) a *fixed* sentiment blend, (c) isotonic **calibration**,
+and (d) the economic de-risking strategy — not from training a model on top.
+*(Self-consistency with a reasoning model — DeepSeek-R1-Distill-Qwen-32B,
+3 sampled traces averaged — is the remaining test of whether more LLM test-time
+compute helps; result pending.)*
+
 ## Reproduce
 ```bash
 # Offline LLM runs (Kaggle RTX 6000 Pro): kaggle/trr_standalone.py + deploy_trr.sh

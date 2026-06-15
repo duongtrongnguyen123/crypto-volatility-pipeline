@@ -62,6 +62,11 @@ MAX_INPUT_TOKENS = 2048
 LAM = 0.6
 TOP_K = 30
 PER_ASSET = False
+# Self-consistency (test-time scaling): K sampled reasoning traces averaged.
+REASON_SAMPLES = 1
+REASON_TEMP = 0.0
+REASON_MAXTOK = 256
+BRAINSTORM_MAXTOK = 768
 
 
 def _is_smoke():
@@ -188,7 +193,9 @@ def main():
     print(f"[kernel] window {start}..{end}  news_items={len(news)}", flush=True)
     pipe = TRRPipeline(llm=llm, batch=True, cross_batch=True,
                        max_items_per_day=MAX_ITEMS_PER_DAY, lam=LAM, top_k=TOP_K,
-                       per_asset=PER_ASSET)
+                       per_asset=PER_ASSET, reason_samples=REASON_SAMPLES,
+                       reason_temp=REASON_TEMP, reason_max_new_tokens=REASON_MAXTOK,
+                       brainstorm_max_new_tokens=BRAINSTORM_MAXTOK)
     pred = pipe.run(group_by_day(news), start=start, end=end)
     print(f"[kernel] predicted {len(pred)} days", flush=True)
 
