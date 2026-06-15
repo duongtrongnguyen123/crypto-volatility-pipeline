@@ -202,6 +202,33 @@ Beyond the portfolio, we asked the LLM for a crash probability **per asset**
 Caveat: BTC/BNB have only 16–18 crash events, so those CIs are wide; the macro
 average and the BTC/ETH lower-CI-above-0.5 are the defensible claims.
 
+## Advanced techniques
+
+### Stacked meta-learner — a cautionary result (`trr/stacking.py`)
+We fused all signals (TRR, 6 per-asset probs, F&G, price-momentum, volatility,
+news-volume, edges) into a meta-model under leak-free expanding **walk-forward**
+CV.
+
+| model (walk-forward OOF) | AUROC |
+|---|---:|
+| F&G alone (best single signal) | 0.705 |
+| TRR alone | 0.594 |
+| **stack — regularized logistic** | **0.404** |
+| **stack — gradient boosting** | **0.426** |
+
+**Both learned stacks underperform the best single signal — and fall below
+chance.** The cause is **non-stationarity**: the signal→crash relationships
+learned on the 2022 bear market *invert* in the 2023 recovery, so a model fit on
+the past generalizes backwards. With only 76 crash events, added capacity is
+strictly harmful. **Robust alternatives win:** the single strongest signal, or a
+*fixed* leak-free convex blend (0.577, see Rigorous Evaluation) — not a learned
+combination. A clean lesson that in non-stationary, low-event regimes, simpler is
+better.
+
+**Calibration is the real win:** isotonic regression (fit on a past fold, applied
+forward) cut the held-out Brier score from 0.199 → 0.048. Conformal flagging at a
+20% alarm budget recovers 27% of crashes. Use the scores calibrated, for ranking.
+
 ## Reproduce
 ```bash
 # Offline LLM runs (Kaggle RTX 6000 Pro): kaggle/trr_standalone.py + deploy_trr.sh
