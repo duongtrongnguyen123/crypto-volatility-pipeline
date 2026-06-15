@@ -173,6 +173,28 @@ def backtest(df: pd.DataFrame, threshold: float = None):
 
 
 # --------------------------------------------------------------------------- #
+def incremental_value(df: pd.DataFrame):
+    """Does the LLM signal catch crashes that PRICE momentum misses? Model-free
+    (no learned combo -> immune to the non-stationarity that broke stacking).
+
+    Stratify days by price-momentum (below/above median). Within each stratum,
+    measure the TRR crash-AUROC. If TRR > 0.5 on the 'price says calm' days, the
+    news reasoning adds value beyond price autocorrelation.
+    """
+    med = df["price_mom"].median()
+    out = {}
+    for name, sub in [("price-CALM (mom<median)", df[df["price_mom"] < med]),
+                      ("price-ALARMED (mom>=median)", df[df["price_mom"] >= med])]:
+        y = sub["crash"].to_numpy()
+        if 0 < y.sum() < len(y):
+            b, lo, hi = bootstrap_auroc(y, sub["crash_prob"].to_numpy(), n=2000)
+            out[name] = {"days": int(len(sub)), "crashes": int(y.sum()),
+                         "trr_auroc": b, "ci": [lo, hi]}
+        else:
+            out[name] = {"days": int(len(sub)), "crashes": int(y.sum()), "trr_auroc": None}
+    return out
+
+
 def cost_aware_backtest(df: pd.DataFrame, cost_bps: float = 10.0, lookback: int = 60):
     """Continuous-sizing, transaction-cost-aware backtest (fully causal).
 

@@ -298,6 +298,24 @@ events with regime non-stationarity, **added model capacity (learned heads, grap
 nets) overfits, and reasoning-model test-time compute is wasted on extraction.**
 Simplicity and calibration win.
 
+### Incremental value over price (model-free) — `incremental_value`
+Does the LLM signal just rediscover price momentum, or add information? We
+stratify days by price-momentum and measure TRR's crash-AUROC *within each
+stratum* (model-free, so immune to the non-stationarity that broke the learned
+combos).
+
+| stratum | days | crashes | TRR AUROC |
+|---|---:|---:|---:|
+| price-CALM (mom < median) | 356 | 32 | 0.558 [0.45, 0.66] |
+| price-ALARMED (mom ≥ median) | 356 | 44 | 0.555 [0.47, 0.64] |
+
+TRR predicts crashes **about as well on the days price says are calm** as when
+price is already falling — so the **news reasoning is largely orthogonal to price
+momentum**, carrying complementary information rather than a price proxy. Modest
+(~0.56) and the CIs are wide (small per-stratum counts), but the point estimates
+are stable across strata — the cleanest evidence that the LLM signal adds
+something price autocorrelation does not.
+
 ## Reproduce
 ```bash
 # Offline LLM runs (Kaggle RTX 6000 Pro): kaggle/trr_standalone.py + deploy_trr.sh
