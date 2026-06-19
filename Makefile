@@ -103,6 +103,10 @@ evaluate:
 test:
 	python tests/test_smoke.py
 	python tests/test_trr.py
+	python tests/test_robustness.py
+	python tests/test_data_quality.py
+	python tests/test_leakage.py
+	python tests/test_spark_processing.py   # skips without pyspark/JVM
 
 # --- TRR (LLM temporal-relational reasoning) ---
 trr-labels:

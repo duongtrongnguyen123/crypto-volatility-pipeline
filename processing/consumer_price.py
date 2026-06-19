@@ -41,18 +41,16 @@ TRADE_SCHEMA = StructType([
 ])
 
 
-def build_stream(spark: SparkSession):
-    raw = (
-        spark.readStream.format("kafka")
-        .option("kafka.bootstrap.servers", config.KAFKA_BOOTSTRAP_SERVERS)
-        .option("subscribe", config.TOPIC_PRICE)
-        .option("startingOffsets", "latest")
-        .load()
-    )
+def price_features(parsed):
+    """Pure transform: parsed aggTrades -> 5-min windowed price features.
 
+    Input columns: symbol, price, quantity, trade_time (epoch ms), is_buyer_maker.
+    Output: window_start/end + the 6 price features. Separated from the Kafka
+    read so it is unit-testable on a static DataFrame (see tests/test_spark_processing.py).
+    Works on both streaming and batch DataFrames.
+    """
     trades = (
-        raw.select(F.from_json(F.col("value").cast("string"), TRADE_SCHEMA).alias("d"))
-        .select("d.*")
+        parsed
         .withColumn("event_time", (F.col("trade_time") / 1000.0).cast("timestamp"))
         # taker-buy quantity: aggressor is the buyer when is_buyer_maker is False.
         .withColumn(
@@ -95,6 +93,20 @@ def build_stream(spark: SparkSession):
         )
     )
     return agg
+
+
+def build_stream(spark: SparkSession):
+    raw = (
+        spark.readStream.format("kafka")
+        .option("kafka.bootstrap.servers", config.KAFKA_BOOTSTRAP_SERVERS)
+        .option("subscribe", config.TOPIC_PRICE)
+        .option("startingOffsets", "latest")
+        .load()
+    )
+    parsed = raw.select(
+        F.from_json(F.col("value").cast("string"), TRADE_SCHEMA).alias("d")
+    ).select("d.*")
+    return price_features(parsed)
 
 
 def main() -> None:

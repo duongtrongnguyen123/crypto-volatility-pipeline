@@ -67,12 +67,17 @@ def feature_matrix(df: pd.DataFrame) -> np.ndarray:
     return feats.to_numpy(dtype=np.float32)
 
 
-def chronological_split(n: int, val_frac: float = 0.15, test_frac: float = 0.15):
+def chronological_split(n: int, val_frac: float = 0.15, test_frac: float = 0.15,
+                        embargo: int = 0):
     """Return (train_idx, val_idx, test_idx) ranges for a time-ordered split.
 
     No shuffling: the most recent `test_frac` is the held-out test set, the
     `val_frac` before it is validation, and the rest is training. Shared by
     ml/train.py and ml/evaluate.py so both use the identical partition.
+
+    `embargo` drops that many sequences at the END of train and val (a purge gap)
+    so a sequence's look-back window can't overlap the next segment's rows. Set
+    embargo >= seq_len-1 for a strictly leak-free split.
     """
     n_test = int(n * test_frac)
     n_val = int(n * val_frac)
@@ -81,8 +86,8 @@ def chronological_split(n: int, val_frac: float = 0.15, test_frac: float = 0.15)
         raise ValueError(
             f"split leaves no training data (n={n}, val={n_val}, test={n_test})"
         )
-    train_idx = range(0, n_train)
-    val_idx = range(n_train, n_train + n_val)
+    train_idx = range(0, max(0, n_train - embargo))
+    val_idx = range(n_train, max(n_train, n_train + n_val - embargo))
     test_idx = range(n_train + n_val, n)
     return train_idx, val_idx, test_idx
 
