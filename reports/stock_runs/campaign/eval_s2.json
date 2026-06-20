@@ -1,0 +1,14 @@
+{
+  "crash": {
+    "summary": {
+      "target": "crash",
+      "n_days": 103,
+      "n_pos_days": 0,
+      "base_rate": 0.0,
+      "date_start": "2016-07-06",
+      "date_end": "2016-12-30",
+      "single_class_window": true
+    },
+    "metrics": {}
+  }
+}

@@ -358,6 +358,41 @@ effective LLM-context horizon ≈ ln(20)/λ trading days:
 and declines with both shorter and longer memory — stale impact edges dilute the
 signal. (A fixed 10-day lookback is slightly past optimal here.)
 
+### Multi-window campaign — RAG, scale-out, FNSPID (the full picture)
+A 2x2-plus campaign across domains/windows, all Qwen2.5-32B on RTX 6000 Pro,
+parallelised across ~18 Kaggle accounts (6-month shards concat into pooled AUROC):
+
+| Window | TRR crash AUROC | news-volume | RAG |
+|---|---|---|---|
+| Stock — COVID (2019-20) | 0.785 | 0.71 | **+0.06 -> 0.847** |
+| Stock — 2016-2020 pooled (9 shards, 31 crashes) | 0.710 | **0.747** | — |
+| Crypto — 2022-23 | 0.530 | 0.458 | +0.01 -> 0.542 |
+| FNSPID — 2021-23 bear market pooled (41 crashes) | 0.550 | 0.491 | — |
+
+Findings:
+- **RAG (case-based few-shot) helps where historical analogues exist** (stock/COVID
+  +0.06) but is **marginal on heterogeneous one-off shocks** (crypto +0.01).
+- **News-volume is NOT a uniform winner.** It beats TRR only on the broad stock
+  2016-2020 window (0.747 vs 0.710). On crypto (0.53 vs 0.46) and the FNSPID bear
+  market (0.55 vs 0.49), **TRR beats volume — precisely where the "count headlines"
+  trick fails** (slow grind-downs with no panic spike; cf. MockLLM 0.36 on 2022H2).
+- **Signal magnitude is honest:** 0.53-0.85, strongest on a single concentrated
+  panic (COVID), modest across broad regimes. News-based crash detection is a
+  real but weak-to-moderate signal.
+- **Data limits:** stock analyst-ratings news ends 2020-06; FNSPID (23GB, stream-
+  filtered to 6 tickers) extends to 2023; crypto news ends 2023-12. Recent years
+  need a live news API (Finnhub/GDELT), not a static corpus.
+
+### Feasibility of price vs return vs direction (measured, 2012 days)
+Predict the LEVEL: "tomorrow=today" R2=0.999 — an autocorrelation illusion, useless.
+Raw RETURN autocorr(1)=-0.07 (~0); DIRECTION from news AUROC~0.5 (chance). But
+|return| (volatility) autocorr(1)=+0.20 (clusters) and returns are left-skewed with
+19% of all movement in the 5% biggest days. => Predictability lives in the **size**
+and the **tails**, not the **sign of the center**. This is *why* crash detection
+works (0.71-0.85) while direction fails (~0.5) — feasible target vs infeasible one
+(weak-form EMH). Tail-risk/crash is the scientifically honest reading of the
+"stock price prediction" use case.
+
 ### Direction target (`trr/targets.py`, `target_mode="direction"`)
 The literal "price prediction": next-day up/down. The LLM is prompted for
 `up_prob` directly. Result: **AUROC 0.46 (stocks, 32B) / ≈0.50 (crypto)** — daily
