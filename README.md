@@ -24,6 +24,9 @@ uses Kaggle. Read on: **TRR first**, then the volatility pipeline.
 
 ## Full deliverable map
 
+**Reproduce the whole analysis (no GPU/Kaggle needed):** `bash scripts/run_all.sh`
+— runs training → ablations → threshold → backtest → figures → 61 tests.
+
 | Component | What | Run |
 |---|---|---|
 | **TRR pipeline** (`trr/`) | zero-shot LLM crash prediction (4 phases + causal RAG) | see below |
