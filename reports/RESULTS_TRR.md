@@ -395,12 +395,25 @@ Out-of-time / cross-source (train 2016-2020 analyst news -> test 2021-2023 FNSPI
 | news-volume | 0.356 |
 
 Walk-forward CV: ensemble 0.615 > LLM zero-shot 0.577. **Training helps (+0.13 over
-zero-shot)** — but the lift comes from **price technicals**, not the LLM: technical-only
-≈ full ensemble, and permutation importance is dominated by `downside_5d` (+0.082) and
-`vol_20d`, with `crash_prob` adding only +0.013. Consistent with the EMH/tail result:
-the predictable part of a crash is the volatility/downside-momentum, which cheap
-technicals already capture; LLM news-reasoning adds little *over* technicals
-out-of-sample (and is penalised by cross-source drift in the prompt).
+zero-shot)**. In the *cross-source* split the lift looks like it comes purely from
+technicals — but that penalises the LLM's `crash_prob` with a source shift.
+
+**Within-source fairness test (`train/ablations.py`) corrects this.** Time-splitting
+*inside* each news source so the LLM feature is evaluated on its own distribution:
+
+| Era (within-source) | LLM zero-shot | GBM technical | GBM full (+LLM) |
+|---|---|---|---|
+| 2016-2020 | 0.653 | 0.665 | **0.695** |
+| 2021-2023 | 0.548 | 0.552 | **0.629** |
+
+The full ensemble (technicals **+** LLM) beats technical-only by **+0.03 to +0.08** —
+i.e. **the LLM news signal genuinely adds value over price technicals when evaluated
+fairly**; the earlier "technicals dominate" was largely a cross-source artifact.
+
+**Calibration & alerting (`train/ablations.py`):** raw OOF probs are overconfident
+(Brier 0.139); isotonic recalibration (fit on an earlier time-half) cuts Brier to
+**0.073**. Precision@K: **P@10 = 0.20 (3.2x base rate)**, P@20 0.15, P@30 0.13 — the
+top-flagged days are heavily enriched for real crashes.
 
 ### Economic backtest (`train/backtest.py`) — the practical payoff
 Leak-free walk-forward OOF crash probs drive a de-risking overlay (cash on the riskiest
