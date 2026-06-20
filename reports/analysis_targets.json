@@ -1,0 +1,168 @@
+{
+  "pred_csv": "kaggle/out_v4/trr_predictions.csv",
+  "n_days": 712,
+  "direction": {
+    "h1": {
+      "horizon": 1,
+      "n": 712,
+      "up_rate": 0.5182584269662921,
+      "signals": {
+        "crash_prob": {
+          "auroc_predict_DOWN": 0.49929681512558566,
+          "ci_DOWN": [
+            0.4596533851635893,
+            0.5407796858580831
+          ],
+          "auroc_predict_UP_flipped": 0.49929681512558566
+        },
+        "fng_fear": {
+          "auroc_predict_DOWN": 0.5250776268695632,
+          "ci_DOWN": [
+            0.4802166046441806,
+            0.5676009544352004
+          ],
+          "auroc_predict_UP_flipped": 0.525077626869563
+        },
+        "price_mom_down": {
+          "auroc_predict_DOWN": 0.49331184273941864,
+          "ci_DOWN": [
+            0.45071760411481665,
+            0.5358598607851968
+          ],
+          "auroc_predict_UP_flipped": 0.4933118427394187
+        }
+      }
+    },
+    "h3": {
+      "horizon": 3,
+      "n": 712,
+      "up_rate": 0.5042134831460674,
+      "signals": {
+        "crash_prob": {
+          "auroc_predict_DOWN": 0.5228443820180387,
+          "ci_DOWN": [
+            0.48271609443922764,
+            0.5628963243823337
+          ],
+          "auroc_predict_UP_flipped": 0.5228443820180387
+        },
+        "fng_fear": {
+          "auroc_predict_DOWN": 0.5425323727382484,
+          "ci_DOWN": [
+            0.5016700269082359,
+            0.585177487828166
+          ],
+          "auroc_predict_UP_flipped": 0.5425323727382483
+        },
+        "price_mom_down": {
+          "auroc_predict_DOWN": 0.5230771658762536,
+          "ci_DOWN": [
+            0.47947872197716346,
+            0.5671046817173926
+          ],
+          "auroc_predict_UP_flipped": 0.5230771658762536
+        }
+      }
+    }
+  },
+  "return": {
+    "h1": {
+      "name": "return_h1",
+      "n": 712,
+      "expect_sign": -1,
+      "signals": {
+        "crash_prob": {
+          "spearman": -0.015036775973364258,
+          "p_value": 0.6887522782840781
+        },
+        "fng_fear": {
+          "spearman": -0.03968754520666011,
+          "p_value": 0.2902598388815516
+        },
+        "price_mom_down": {
+          "spearman": -0.010259913725084889,
+          "p_value": 0.7846266000655162
+        }
+      },
+      "sign_accuracy": {
+        "signal": "crash_prob",
+        "accuracy": 0.49859550561797755
+      }
+    },
+    "h3": {
+      "name": "return_h3",
+      "n": 712,
+      "expect_sign": -1,
+      "signals": {
+        "crash_prob": {
+          "spearman": -0.04390892376822306,
+          "p_value": 0.241943828212257
+        },
+        "fng_fear": {
+          "spearman": -0.06861205175884913,
+          "p_value": 0.06728916292650376
+        },
+        "price_mom_down": {
+          "spearman": -0.060679421896928945,
+          "p_value": 0.10571109802745196
+        }
+      },
+      "sign_accuracy": {
+        "signal": "crash_prob",
+        "accuracy": 0.5098314606741573
+      }
+    }
+  },
+  "severity": {
+    "name": "severity_h3",
+    "n": 712,
+    "expect_sign": 1,
+    "signals": {
+      "crash_prob": {
+        "spearman": 0.05803886014952739,
+        "p_value": 0.12180217850567676
+      },
+      "fng_fear": {
+        "spearman": 0.15395261281628245,
+        "p_value": 3.701415651934836e-05
+      },
+      "price_mom_down": {
+        "spearman": 0.02508108753819103,
+        "p_value": 0.5040211838425258
+      }
+    },
+    "sign_accuracy": {
+      "signal": "crash_prob",
+      "accuracy": 0.5330578512396694
+    }
+  },
+  "vol_regime": {
+    "horizon": 1,
+    "n": 712,
+    "class_counts": {
+      "0": 270,
+      "1": 189,
+      "2": 253
+    },
+    "signals": {
+      "crash_prob": {
+        "macro_ovr_auroc": 0.4972224808242423
+      },
+      "fng_fear": {
+        "macro_ovr_auroc": 0.49994463249631726
+      },
+      "price_mom_down": {
+        "macro_ovr_auroc": 0.4955590394095217
+      }
+    },
+    "crash_prob_tercile_accuracy": 0.324438202247191,
+    "majority_baseline_accuracy": 0.3792134831460674
+  },
+  "verdict": [
+    "direction h=1: crash_prob does NOT predict (~chance) down moves (AUROC 0.499)",
+    "direction h=3: crash_prob weakly predicts down moves (AUROC 0.523)",
+    "severity (drawdown): crash_prob Spearman 0.058 (positive as expected)",
+    "forward 3d return: crash_prob Spearman -0.044 (weak/absent)",
+    "volatility regime: crash_prob macro-OvR AUROC 0.497 (weak)"
+  ]
+}

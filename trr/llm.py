@@ -321,6 +321,88 @@ class ReasoningLLM(ABC):
         return [(sum(ps) / len(ps) if ps else 0.0, last_rat[i])
                 for i, ps in enumerate(sample_probs)]
 
+    # --- Phase 4 (alternative target): price-direction reasoning ----------
+    def reason_multi_direction(
+        self,
+        tuples_list: list[list[tuple]],
+        contexts: list[str],
+        max_new_tokens: int = 256,
+        n_samples: int = 1,
+        temperature: float = 0.0,
+    ) -> list[tuple[float, str]]:
+        """Batched price-direction Reasoning.
+
+        Mirrors `reason_multi` but asks the LLM for `up_prob` — the probability
+        the portfolio price RISES over the next day — instead of a crash
+        probability. Supports the same self-consistency sampling (n_samples>1 at
+        temperature>0 averages the up-probabilities). Returns one
+        (up_prob, rationale) per day.
+        """
+        prompts = [self._reason_prompt_direction(t, c)
+                   for t, c in zip(tuples_list, contexts)]
+
+        def parse(raw):
+            data = extract_json(raw) or {}
+            try:
+                return max(0.0, min(1.0, float(data.get("up_prob", 0.5)))), str(data.get("rationale", ""))
+            except (TypeError, ValueError):
+                return 0.5, ""
+
+        if n_samples <= 1:
+            return [parse(r) for r in self.generate_batch(prompts, max_new_tokens=max_new_tokens)]
+
+        sample_probs = [[] for _ in prompts]
+        last_rat = ["" for _ in prompts]
+        for _ in range(n_samples):
+            raws = self.generate_batch(prompts, max_new_tokens=max_new_tokens,
+                                       temperature=temperature)
+            for i, r in enumerate(raws):
+                p, rat = parse(r)
+                sample_probs[i].append(p)
+                if rat:
+                    last_rat[i] = rat
+        return [(sum(ps) / len(ps) if ps else 0.5, last_rat[i])
+                for i, ps in enumerate(sample_probs)]
+
+    @staticmethod
+    def _reason_prompt_direction(tuples: list[tuple], context: str) -> str:
+        lines = "\n".join(
+            f"  ({t[0]:%Y-%m-%d}, {t[1]}, {'+' if t[2] >= 0 else '-'}, {t[3]})"
+            for t in tuples
+        )
+        return (
+            "You are forecasting the next-day PRICE DIRECTION of an equal-weight "
+            "crypto portfolio (BTC, ETH, SOL, BNB, AVAX, DOGE) from a graph of "
+            "dated, directed news-impact relations (time, subject, polarity, "
+            "object).\n"
+            f"{context}\n"
+            f"Impact tuples:\n{lines}\n\n"
+            "CALIBRATION — read carefully:\n"
+            "- Estimate up_prob = P(portfolio closes HIGHER tomorrow than today).\n"
+            "- Daily crypto direction is near a coin-flip, so the DEFAULT is "
+            "~0.50. Move away from 0.50 only when the impacts lean clearly one "
+            "way: a preponderance of POSITIVE impacts (adoption, ETF inflows, "
+            "upgrades) pushes up_prob ABOVE 0.50; a preponderance of NEGATIVE "
+            "impacts (hacks, bans, liquidations) pushes it BELOW 0.50.\n"
+            "- Weight by breadth and strength: many strong same-day impacts hitting "
+            "multiple assets justify a larger move from 0.50 than one mild item. "
+            "Spread your probabilities; do not anchor every day to 0.50.\n\n"
+            "FEW-SHOT EXAMPLES (learn the pattern; do not copy the numbers):\n"
+            "Example A — mild mixed chatter, no clear lean:\n"
+            "  a couple of small positives and negatives roughly cancelling\n"
+            "  -> {\"up_prob\": 0.50, \"rationale\": \"balanced impacts; no edge\"}\n"
+            "Example B — broad positive flow:\n"
+            "  several strong positive impacts (ETF approval, inflows, upgrades) "
+            "across BTC and ETH the same day, few negatives\n"
+            "  -> {\"up_prob\": 0.68, \"rationale\": \"broad bullish catalysts lean up\"}\n"
+            "Example C — broad negative flow:\n"
+            "  dense same-day negatives (a major hack and a regulatory ban) hitting "
+            "BTC, ETH and SOL together\n"
+            "  -> {\"up_prob\": 0.30, \"rationale\": \"broad bearish shock leans down\"}\n\n"
+            "Now assess TODAY from the tuples above.\n"
+            "Return ONLY JSON: {\"up_prob\": 0..1, \"rationale\": \"...\"}.\n"
+        )
+
     def reason_multi_per_asset(self, tuples_list: list[list[tuple]], contexts: list[str],
                               assets: list[str], max_new_tokens: int = 320) -> list[dict]:
         """Batched per-asset Reasoning: one crash probability PER portfolio asset."""
@@ -437,6 +519,23 @@ class MockLLM(ReasoningLLM):
     def reason_multi(self, tuples_list, contexts, max_new_tokens=256,
                     n_samples=1, temperature=0.0):
         return [self.predict_crash(t, c) for t, c in zip(tuples_list, contexts)]
+
+    def predict_direction(self, tuples: list[tuple], context: str = "") -> tuple[float, str]:
+        """Heuristic next-day up-probability: more POSITIVE impacts -> higher
+        up_prob, more NEGATIVE -> lower. Centred at 0.5 with no impacts.
+        """
+        if not tuples:
+            return 0.5, "no impacts"
+        pos = sum(1 for t in tuples if t[2] >= 0)
+        neg = len(tuples) - pos
+        # Net positive fraction in [-1, 1] -> up_prob in [~0.1, ~0.9].
+        net = (pos - neg) / len(tuples)
+        prob = max(0.0, min(1.0, 0.5 + 0.4 * net))
+        return prob, f"{pos}/{len(tuples)} positive impacts toward portfolio"
+
+    def reason_multi_direction(self, tuples_list, contexts, max_new_tokens=256,
+                               n_samples=1, temperature=0.0):
+        return [self.predict_direction(t, c) for t, c in zip(tuples_list, contexts)]
 
     def reason_multi_per_asset(self, tuples_list, contexts, assets, max_new_tokens=320):
         out = []

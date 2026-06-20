@@ -1,0 +1,52 @@
+# LOCAL LIVE-SERVING TIER (tier 3 of the 3-tier architecture).
+#
+# This is SEPARATE from:
+#   - the Kaggle RTX 6000 Pro offline batch lab (no internet; trains the adapter),
+#   - the Kafka/Spark streaming stack in the repo-root docker-compose.yml
+#     (ingestion + processing/consumer_trr.py that writes the crash-signal store).
+#
+# Run on the local box (has internet + an optional small GPU):
+#   docker compose -f serving/docker-compose.serving.yml up
+#
+# The fine-tuned adapter trained on Kaggle is mounted/pointed at via TRR_MODEL_DIR.
+services:
+  api:
+    image: python:3.11-slim
+    working_dir: /app
+    command: >
+      sh -c "pip install --no-cache-dir -r serving/requirements.txt &&
+             uvicorn serving.api:app --host 0.0.0.0 --port 8000"
+    environment:
+      # Backend: heuristic (default, CPU) | finetuned | api
+      SERVING_BACKEND: ${SERVING_BACKEND:-heuristic}
+      # Path to the LoRA/merged adapter downloaded from the Kaggle offline lab.
+      TRR_MODEL_DIR: ${TRR_MODEL_DIR:-}
+      # Hosted-LLM backend config (only used when SERVING_BACKEND=api).
+      LLM_API_URL: ${LLM_API_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      # Feature/model stores shared with the streaming + offline tiers.
+      FEATURES_DIR: /app/data/features
+      MODEL_PATH: /app/models/lstm_volatility.pt
+    volumes:
+      - ..:/app
+      # Mount the downloaded Kaggle adapter here and set TRR_MODEL_DIR to match.
+      - ${TRR_MODEL_DIR:-/dev/null}:${TRR_MODEL_DIR:-/dev/null}
+    ports:
+      - "8000:8000"
+
+  dashboard:
+    image: python:3.11-slim
+    working_dir: /app
+    command: >
+      sh -c "pip install --no-cache-dir -r serving/requirements.txt &&
+             streamlit run serving/dashboard.py --server.port 8501
+             --server.address 0.0.0.0"
+    environment:
+      FEATURES_DIR: /app/data/features
+    volumes:
+      - ..:/app
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api

@@ -42,6 +42,7 @@ class TRRPipeline:
         max_items_per_day: int = 40,
         cross_batch: bool = False,
         per_asset: bool = False,
+        target_mode: str = "crash",
         reason_samples: int = 1,
         reason_temp: float = 0.0,
         reason_max_new_tokens: int = 256,
@@ -64,6 +65,13 @@ class TRRPipeline:
         self.cross_batch = cross_batch
         # per_asset: emit a crash probability per portfolio asset (cross_batch).
         self.per_asset = per_asset
+        # target_mode: "crash" (default, all existing behaviour) asks the LLM for
+        # a crash probability; "direction" asks for the next-day price-up
+        # probability and surfaces it as an `up_prob` column. Other phases are
+        # unchanged — only the Reasoning phase and the output column differ.
+        if target_mode not in ("crash", "direction"):
+            raise ValueError(f"target_mode must be 'crash' or 'direction', got {target_mode!r}")
+        self.target_mode = target_mode
         # Self-consistency: sample reason_samples reasoning traces at reason_temp
         # and average (test-time compute scaling). reason_max_new_tokens is large
         # for reasoning models that emit a <think> trace.
@@ -106,7 +114,13 @@ class TRRPipeline:
 
         # 5. Reason over the pruned sub-graph (with a memory summary as context).
         context = memory_context(decayed)
-        prob, rationale = reason_crash(pruned, self.llm, context=context)
+        if self.target_mode == "direction":
+            prob, rationale = self.llm.reason_multi_direction(
+                [[e.as_tuple() for e in pruned]], [context],
+                max_new_tokens=self.reason_max_new_tokens,
+            )[0]
+        else:
+            prob, rationale = reason_crash(pruned, self.llm, context=context)
 
         return Prediction(
             timestamp=ts,
@@ -145,6 +159,22 @@ class TRRPipeline:
             n_edges.append(len(pruned))
 
         # Phase C — batched reasoning.
+        if self.target_mode == "direction":
+            results = self.llm.reason_multi_direction(
+                tuples_list, contexts, max_new_tokens=self.reason_max_new_tokens,
+                n_samples=self.reason_samples, temperature=self.reason_temp,
+            )
+            rows = []
+            for d, (up_prob, rationale), ne, dn in zip(dates, results, n_edges, day_news):
+                ts = datetime(d.year, d.month, d.day)
+                # Stored in the crash_prob field; surfaced as `up_prob` in run().
+                rows.append(Prediction(
+                    timestamp=ts, crash_prob=up_prob,
+                    label=int(up_prob >= self.label_threshold), rationale=rationale,
+                    n_news=len(dn), n_edges=ne,
+                ))
+            return rows
+
         if self.per_asset:
             per = self.llm.reason_multi_per_asset(tuples_list, contexts, self.portfolio)
             rows = []
@@ -234,6 +264,11 @@ class TRRPipeline:
                 df[f"crash_prob_{ticker}"] = [
                     p.per_asset_direction.get(ticker, 0.0) for p in rows
                 ]
+        # Direction mode: the reasoning output is a next-day price-up probability,
+        # so surface it under its own column name (the value is carried in the
+        # Prediction.crash_prob field internally).
+        if self.target_mode == "direction":
+            df = df.rename(columns={"crash_prob": "up_prob"})
         return df
 
 
