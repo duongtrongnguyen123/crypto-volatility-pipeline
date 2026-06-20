@@ -323,18 +323,44 @@ detection. To close the gaps:
 
 ### Equities port (`trr/prices.py`, `scripts/build_stock_data.py`)
 The same TRR pipeline run on **6 large-cap stocks** (AAPL, AMZN, GOOGL, NVDA,
-TSLA, NFLX), 2019-06 → 2020-06 — 261 trading days, **5,517 real headlines**
-(`miguelaenlle` analyst/partner news), prices via yfinance. Labels cleanly
-surface the **COVID crash (Feb 20–Mar 13 2020)** as the worst drawdowns.
-- **Crash AUROC = 0.823** (MockLLM). Honest caveat: this single-event window
-  (COVID dominates) inflates it — one big, news-saturated crash is easy to flag;
-  contrast the multi-event crypto window (≈0.57). The 32B refines it on GPU.
+TSLA, NFLX), 2019-06 → 2020-06 — 343 news-days / 261 trading days, **5,517 real
+headlines** (analyst/partner news), prices via yfinance. Labels cleanly surface
+the **COVID crash (Feb 20–Mar 13 2020)** as the worst drawdowns.
+- **Crash AUROC = 0.785 (Qwen2.5-32B on RTX 6000 Pro)**, beating the news-volume
+  baseline (0.712). The two single highest-risk days the model flagged are
+  exactly the COVID crash peak (Mar 9–10 2020, p=0.88, both real crashes);
+  crash-day mean prob 0.50 vs 0.29 on calm days.
+- A sentiment-lexicon (MockLLM) scores 0.81 on this *single-event* window — one
+  news-saturated crash is easy to flag from volume/negativity alone, so the
+  baseline is competitive here; the 32B's edge is calibrated probabilities and
+  reasoning that generalised better on the multi-event crypto window.
+- **Bug found and fixed mid-study** (`trr/llm.py`): the reason prompts had the
+  crypto portfolio hard-coded, so the first 32B stock run scored ~chance (0.48,
+  constant 0.10 — it kept answering "no impact on the *crypto* portfolio" while
+  reading stock news). Threading the real portfolio universe into the prompts
+  fixed it. The contradiction with the 0.81 lexicon baseline is what exposed the
+  bug — rigorous baselines earn their keep.
 - Demonstrates the method **ports to equities** — the literal "stock" domain —
   with no code changes beyond a daily price loader.
 
+### Memory-horizon sweep (how far back should the model see?)
+Four parallel 32B runs (one per Kaggle account) sweeping the decay rate λ; the
+effective LLM-context horizon ≈ ln(20)/λ trading days:
+
+| λ | horizon | crash AUROC |
+|---|---|---|
+| 1.0 | ~3 d | 0.761 |
+| **0.6** | **~5 d** | **0.785** |
+| 0.3 | ~10 d | 0.744 |
+| 0.2 | ~15 d | 0.746 |
+
+**Longer memory does not help.** Crash skill peaks at a ~5-day (one-week) window
+and declines with both shorter and longer memory — stale impact edges dilute the
+signal. (A fixed 10-day lookback is slightly past optimal here.)
+
 ### Direction target (`trr/targets.py`, `target_mode="direction"`)
 The literal "price prediction": next-day up/down. The LLM is prompted for
-`up_prob` directly. Result: **AUROC ≈ 0.51 (stocks) / ≈0.50 (crypto)** — daily
+`up_prob` directly. Result: **AUROC 0.46 (stocks, 32B) / ≈0.50 (crypto)** — daily
 direction is **near-random** from news alone (efficient-market consistent). An
 honest negative: TRR is a **crash/down-tail detector**, not a daily price
 oracle.

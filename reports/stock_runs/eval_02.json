@@ -1,0 +1,21 @@
+{
+  "crash": {
+    "summary": {
+      "target": "crash",
+      "n_days": 343,
+      "n_pos_days": 14,
+      "base_rate": 0.04081632653061224,
+      "date_start": "2019-06-03",
+      "date_end": "2020-06-10"
+    },
+    "metrics": {
+      "TRR": {
+        "auroc": 0.7460920538428137,
+        "pr_auc": 0.35170895508135175
+      },
+      "news_volume": {
+        "auroc": 0.7116804168475901
+      }
+    }
+  }
+}
