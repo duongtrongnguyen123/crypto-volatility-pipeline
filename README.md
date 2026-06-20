@@ -22,6 +22,37 @@ uses Kaggle. Read on: **TRR first**, then the volatility pipeline.
 
 ---
 
+## Full deliverable map
+
+| Component | What | Run |
+|---|---|---|
+| **TRR pipeline** (`trr/`) | zero-shot LLM crash prediction (4 phases + causal RAG) | see below |
+| **Kaggle kernels** (`kaggle/`) | Qwen2.5-32B on RTX 6000 Pro; multi-account scale-out | `kaggle/*.py` |
+| **Training** (`train/`) | meta-learner (LLM + technicals), ablations, economic backtest | `.venv/bin/python -m train.run` |
+| **Serving** (`serving/`) | FastAPI live `/predict` + `/backtest` (real TRR pipeline) | `.venv/bin/uvicorn serving.api:app --port 8000` |
+| **Web platform** (`webapp/`) | Streamlit: crash gauge, live impact-graph, timeline, campaign | `.venv/bin/streamlit run webapp/app.py` |
+| **Streaming** (`ingestion/`,`processing/`) | Kafka producers + Spark consumers (speed layer) | `processing/consumer_trr.py` |
+| **Docs** (`docs/`) | architecture (Mermaid), full report, slides | — |
+| **Results** (`reports/`) | `RESULTS_TRR.md` (master) + training/ablation/backtest | — |
+
+## Headline results (zero-shot Qwen2.5-32B, crash AUROC unless noted)
+
+| Experiment | Result |
+|---|---|
+| Stock COVID crash | 0.785 (**+RAG 0.847**) |
+| Stock 2016–2020 pooled (9 shards) | 0.710 |
+| Crypto 2022–23 | 0.530 (+RAG 0.542) |
+| FNSPID 2021–23 bear market | 0.550 (> news-volume 0.491) |
+| Training (within-source) | full ensemble +0.03–0.08 over technicals; LLM adds value |
+| Economic backtest | de-risk **+205% / −45% DD / 0.97 Sharpe** vs buy&hold +161% / −50% / 0.80 |
+| Calibration / alerting | isotonic Brier 0.139→0.073; **P@10 = 0.20 (3.2× base)** |
+| Direction / raw price | ~chance (EMH) — tail-risk is the feasible target |
+
+Full analysis + honest negatives in [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md);
+architecture & report in [`docs/`](docs/).
+
+---
+
 ## TRR — LLM crash prediction (`trr/`)
 
 The **TRR** framework is **zero-shot** — the LLM is never trained; it reasons.
