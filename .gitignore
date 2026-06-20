@@ -63,3 +63,6 @@ kaggle/fds_*/
 kaggle/ps_*/
 kaggle/pf_*/
 models/*.pkl
+kaggle/cbuild/
+kaggle/p_*/
+kaggle/ds_*/

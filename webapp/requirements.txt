@@ -1,0 +1,7 @@
+# TRR Stock Crash Radar — web platform dependencies.
+# The app also imports the in-repo `trr/` package (already on the repo's
+# .venv); these are the only extra libraries the webapp needs.
+streamlit>=1.58
+plotly>=6.8
+networkx>=3.6
+pandas>=2.0

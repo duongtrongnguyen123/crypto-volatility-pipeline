@@ -383,6 +383,37 @@ Findings:
   filtered to 6 tickers) extends to 2023; crypto news ends 2023-12. Recent years
   need a live news API (Finnhub/GDELT), not a static corpus.
 
+### Does TRAINING help? (meta-learner, `train/`)
+Out-of-time / cross-source (train 2016-2020 analyst news -> test 2021-2023 FNSPID):
+
+| Model | AUROC |
+|---|---|
+| GBM technical-only | **0.682** |
+| GBM full ensemble (technicals + LLM) | 0.667 |
+| Logistic stack | 0.661 |
+| LLM zero-shot | 0.557 |
+| news-volume | 0.356 |
+
+Walk-forward CV: ensemble 0.615 > LLM zero-shot 0.577. **Training helps (+0.13 over
+zero-shot)** — but the lift comes from **price technicals**, not the LLM: technical-only
+≈ full ensemble, and permutation importance is dominated by `downside_5d` (+0.082) and
+`vol_20d`, with `crash_prob` adding only +0.013. Consistent with the EMH/tail result:
+the predictable part of a crash is the volatility/downside-momentum, which cheap
+technicals already capture; LLM news-reasoning adds little *over* technicals
+out-of-sample (and is penalised by cross-source drift in the prompt).
+
+### Economic backtest (`train/backtest.py`) — the practical payoff
+Leak-free walk-forward OOF crash probs drive a de-risking overlay (cash on the riskiest
+15% of days), 2018-2023:
+
+| Strategy | Total return | Max drawdown | Sharpe |
+|---|---|---|---|
+| buy-and-hold | +161% | -50.2% | 0.80 |
+| **TRR de-risk** | **+205%** | **-45.0%** | **0.97** |
+
+The crash signal **adds return AND cuts drawdown** — even a modest-AUROC tail detector
+is economically useful as a risk overlay (you only need to be right on the worst days).
+
 ### Feasibility of price vs return vs direction (measured, 2012 days)
 Predict the LEVEL: "tomorrow=today" R2=0.999 — an autocorrelation illusion, useless.
 Raw RETURN autocorr(1)=-0.07 (~0); DIRECTION from news AUROC~0.5 (chance). But
