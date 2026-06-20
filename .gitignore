@@ -62,3 +62,4 @@ kaggle/wds_*/
 kaggle/fds_*/
 kaggle/ps_*/
 kaggle/pf_*/
+models/*.pkl
