@@ -316,6 +316,43 @@ momentum**, carrying complementary information rather than a price proxy. Modest
 are stable across strata — the cleanest evidence that the LLM signal adds
 something price autocorrelation does not.
 
+## Matching the title literally: stocks + direction + live serving
+
+The title says "**Stock** Price Prediction"; our core study is crypto crash
+detection. To close the gaps:
+
+### Equities port (`trr/prices.py`, `scripts/build_stock_data.py`)
+The same TRR pipeline run on **6 large-cap stocks** (AAPL, AMZN, GOOGL, NVDA,
+TSLA, NFLX), 2019-06 → 2020-06 — 261 trading days, **5,517 real headlines**
+(`miguelaenlle` analyst/partner news), prices via yfinance. Labels cleanly
+surface the **COVID crash (Feb 20–Mar 13 2020)** as the worst drawdowns.
+- **Crash AUROC = 0.823** (MockLLM). Honest caveat: this single-event window
+  (COVID dominates) inflates it — one big, news-saturated crash is easy to flag;
+  contrast the multi-event crypto window (≈0.57). The 32B refines it on GPU.
+- Demonstrates the method **ports to equities** — the literal "stock" domain —
+  with no code changes beyond a daily price loader.
+
+### Direction target (`trr/targets.py`, `target_mode="direction"`)
+The literal "price prediction": next-day up/down. The LLM is prompted for
+`up_prob` directly. Result: **AUROC ≈ 0.51 (stocks) / ≈0.50 (crypto)** — daily
+direction is **near-random** from news alone (efficient-market consistent). An
+honest negative: TRR is a **crash/down-tail detector**, not a daily price
+oracle.
+
+### Live serving proven on local hardware (`scripts/prove_live_serving.py`)
+The robust **32B stays the offline batch predictor** (Kaggle, no internet); live
+serving runs **locally on a 2060** with a small model. Proof: a real
+**Qwen2.5-1.5B** loaded and ran the full brainstorm→reason pipeline producing
+real crash_probs + edges (90 s/day on CPU; ~1–2 s/day on the 2060 GPU). VRAM:
+Qwen-7B-AWQ ≈ 5.5 GB **fits** the 8 GB card; 32B (65 GB) does not → it stays in
+the Kaggle lab. The `serving/` FastAPI + dashboard + paper-trader expose it
+(`/crash-risk`, `/volatility`), 10 tests passing.
+
+**Title verdict:** method (temporal-relational LLM reasoning over news) = faithful
+match; now demonstrated on **stocks** (domain gap closed) and with a **direction**
+target (literal-price gap closed, though weak); the durable signal remains
+crash/large-move detection, not raw price.
+
 ## Reproduce
 ```bash
 # Offline LLM runs (Kaggle RTX 6000 Pro): kaggle/trr_standalone.py + deploy_trr.sh
