@@ -447,6 +447,34 @@ def create_app(backend: str = "heuristic") -> FastAPI:
             backend=backend_label(llm),
         )
 
+    @app.post("/predict-ensemble")
+    def predict_ensemble(req: PredictRequest) -> dict:
+        """Run /predict, then fold the LLM signal + price technicals through the
+        trained meta-learner (models/trr_meta.pkl) for a calibrated ensemble
+        probability. Falls back to the raw LLM prob if the model is unavailable.
+        """
+        base = predict(req)
+        stream = _predict_request_to_days(req)
+        last_day = max(stream) if stream else None
+        n_news = len(stream.get(last_day, [])) if last_day is not None else 0
+        out = {"llm_crash_prob": base.crash_prob, "n_edges": base.n_edges,
+               "n_news": n_news, "rationale": base.rationale, "asof": base.asof,
+               "backend": base.backend}
+        try:
+            from serving.ensemble import score_ensemble
+            ens = score_ensemble(base.crash_prob, n_news, base.n_edges, asof=None)
+        except Exception:  # noqa: BLE001
+            ens = None
+        if ens is None:
+            out["ensemble_available"] = False
+            out["crash_prob"] = base.crash_prob
+        else:
+            out["ensemble_available"] = True
+            out["crash_prob"] = ens["ensemble_crash_prob"]
+            out.update({k: ens[k] for k in ("ensemble_crash_prob",
+                        "technicals_asof", "trained_on", "note")})
+        return out
+
     @app.get("/backtest", response_model=BacktestResponse)
     def backtest() -> BacktestResponse:
         """Aggregated offline campaign AUROC results (TRR vs news-volume)."""

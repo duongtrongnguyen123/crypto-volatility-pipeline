@@ -241,3 +241,18 @@ def test_derisk_reduces_drawdown_on_crash():
     strat_mdd = res["max_drawdown"]
     assert strat_mdd > bh_mdd, (strat_mdd, bh_mdd)
     assert res["total_return"] > res["buy_hold"]["total_return"], res
+
+
+def test_predict_ensemble_endpoint():
+    """The meta-ensemble endpoint returns a calibrated crash_prob (or degrades)."""
+    client = _client()
+    r = client.post("/predict-ensemble", json={"headlines": [
+        {"title": "Major exchange insolvency, contagion and liquidations cascade",
+         "assets": ["BTC", "ETH"]}]})
+    assert r.status_code == 200
+    d = r.json()
+    assert "llm_crash_prob" in d and "crash_prob" in d
+    assert 0.0 <= d["crash_prob"] <= 1.0
+    assert "ensemble_available" in d
+    if d["ensemble_available"]:
+        assert "technicals_asof" in d and "ensemble_crash_prob" in d
