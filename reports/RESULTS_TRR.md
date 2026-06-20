@@ -458,6 +458,35 @@ match; now demonstrated on **stocks** (domain gap closed) and with a **direction
 target (literal-price gap closed, though weak); the durable signal remains
 crash/large-move detection, not raw price.
 
+### Operating points & deployment (`train/threshold.py`, `serving/ensemble.py`)
+AUROC is threshold-free; deployment needs an alert threshold. Walk-forward OOF
+operating points (1,110 days, 6.2% base rate) — honest about the precision ceiling:
+
+| Alert rate | precision | recall | lift |
+|---|---|---|---|
+| top 5% | 0.09 | 0.07 | 1.4x |
+| top 10% | 0.08 | 0.13 | 1.3x |
+| top 15% | 0.07 | 0.17 | 1.2x |
+| **top 10 days (P@10)** | **0.20** | — | **3.2x** |
+
+The signal is concentrated in the *very top* days (P@10 3.2x) but precision falls
+to ~1.1-1.4x across broader alert rates, and F1 is structurally low at a 6% base
+rate. **Yet the economic backtest still wins** — de-risking tolerates false
+positives because the cost of sitting in cash on a calm day is small relative to
+avoiding a crash. Served live via `serving.ensemble` -> `/predict-ensemble`
+(trained meta-learner over LLM signal + technicals, isotonic-calibratable).
+
+### Limitations & future work
+- **Modest absolute skill.** Crash AUROC 0.53-0.85 (best on concentrated panics);
+  precision is base-rate-limited. Useful as a *risk overlay*, not a precise oracle.
+- **News-source shift** penalises the LLM feature across eras; within-source it
+  adds value. A unified single-source corpus (e.g. FNSPID throughout) would be cleaner.
+- **Direction/price infeasible** (weak-form EMH) — confirmed, not a tuning gap.
+- **Few events** (31-72 crashes) cap learned-model gains and widen CIs.
+- **Future:** persistent Neo4j Graph-RAG (multi-hop chains), recent-years news via a
+  live API (Finnhub) for 2024-2026, a 3-class up/flat/down target, and per-asset
+  conformal risk sets.
+
 ## Reproduce
 ```bash
 # Offline LLM runs (Kaggle RTX 6000 Pro): kaggle/trr_standalone.py + deploy_trr.sh
