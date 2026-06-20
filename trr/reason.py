@@ -14,10 +14,11 @@ def reason_crash(
     edges: list[ImpactEdge],
     llm: ReasoningLLM,
     context: str = "",
+    universe: list[str] | None = None,
 ) -> tuple[float, str]:
     """Predict (crash_prob, rationale) over the pruned impact edges."""
     tuples = [e.as_tuple() for e in edges]
-    return llm.predict_crash(tuples, context=context)
+    return llm.predict_crash(tuples, context=context, universe=universe)
 
 
 def memory_context(decayed: list[tuple[ImpactEdge, float]], top: int = 5) -> str:

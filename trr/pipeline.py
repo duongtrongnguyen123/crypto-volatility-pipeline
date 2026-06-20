@@ -118,9 +118,11 @@ class TRRPipeline:
             prob, rationale = self.llm.reason_multi_direction(
                 [[e.as_tuple() for e in pruned]], [context],
                 max_new_tokens=self.reason_max_new_tokens,
+                universe=self.portfolio,
             )[0]
         else:
-            prob, rationale = reason_crash(pruned, self.llm, context=context)
+            prob, rationale = reason_crash(pruned, self.llm, context=context,
+                                           universe=self.portfolio)
 
         return Prediction(
             timestamp=ts,
@@ -163,6 +165,7 @@ class TRRPipeline:
             results = self.llm.reason_multi_direction(
                 tuples_list, contexts, max_new_tokens=self.reason_max_new_tokens,
                 n_samples=self.reason_samples, temperature=self.reason_temp,
+                universe=self.portfolio,
             )
             rows = []
             for d, (up_prob, rationale), ne, dn in zip(dates, results, n_edges, day_news):
@@ -192,6 +195,7 @@ class TRRPipeline:
         results = self.llm.reason_multi(
             tuples_list, contexts, max_new_tokens=self.reason_max_new_tokens,
             n_samples=self.reason_samples, temperature=self.reason_temp,
+            universe=self.portfolio,
         )
         rows = []
         for d, (prob, rationale), ne, dn in zip(dates, results, n_edges, day_news):

@@ -151,8 +151,9 @@ class ReasoningLLM(ABC):
         return edges
 
     # --- Phase 4: Reasoning -----------------------------------------------
-    def predict_crash(self, tuples: list[tuple], context: str = "") -> tuple[float, str]:
-        prompt = self._reason_prompt(tuples, context)
+    def predict_crash(self, tuples: list[tuple], context: str = "",
+                      universe: list[str] | None = None) -> tuple[float, str]:
+        prompt = self._reason_prompt(tuples, context, universe)
         raw = self.generate(prompt, max_new_tokens=512)
         data = extract_json(raw) or {}
         try:
@@ -167,7 +168,7 @@ class ReasoningLLM(ABC):
     def _impact_prompt(news: NewsItem, candidate_assets: list[str]) -> str:
         assets = ", ".join(candidate_assets)
         return (
-            "You are a financial analyst building an impact graph for crypto "
+            "You are a financial analyst building an impact graph for "
             "portfolio crash detection. Given a news item, list directed impact "
             "relations from the news/entities toward the portfolio assets.\n"
             f"Portfolio assets: {assets}\n"
@@ -187,8 +188,8 @@ class ReasoningLLM(ABC):
             f"  [{i}] {item.text()}" for i, item in enumerate(news_items)
         )
         return (
-            "You are a financial analyst building an impact graph for crypto "
-            "portfolio crash detection. Below are the crypto news headlines for "
+            "You are a financial analyst building an impact graph for "
+            "portfolio crash detection. Below are the news headlines for "
             f"a single day ({day_str}), each prefixed with a numeric index in "
             "square brackets.\n"
             f"Portfolio assets: {assets}\n\n"
@@ -203,26 +204,28 @@ class ReasoningLLM(ABC):
         )
 
     @staticmethod
-    def _reason_prompt(tuples: list[tuple], context: str) -> str:
+    def _reason_prompt(tuples: list[tuple], context: str,
+                       universe: list[str] | None = None) -> str:
         lines = "\n".join(
             f"  ({t[0]:%Y-%m-%d}, {t[1]}, {'+' if t[2] >= 0 else '-'}, {t[3]})"
             for t in tuples
         )
+        uni = ", ".join(universe) if universe else "BTC, ETH, SOL, BNB, AVAX, DOGE"
         return (
-            "You are forecasting whether the crypto portfolio (BTC, ETH, SOL, "
-            "BNB, AVAX, DOGE) will CRASH (drop >8% over the next 3 days) from a "
+            f"You are forecasting whether the portfolio ({uni}) will CRASH (a "
+            "large draw-down over the next 3 days) from a "
             "graph of dated, directed news-impact relations (time, subject, "
             "polarity, object).\n"
             f"{context}\n"
             f"Impact tuples:\n{lines}\n\n"
             "CALIBRATION — read carefully:\n"
-            "- Crypto news is negative on MOST days; routine bearish headlines do "
-            "NOT mean a crash. The base rate of actual crashes is only ~13% of "
-            "days, so the DEFAULT/typical answer is a LOW probability (~0.10-0.20).\n"
+            "- Financial news is negative on MANY days; routine bearish headlines do "
+            "NOT mean a crash. The base rate of actual crashes is low (~5-13% of "
+            "days), so the DEFAULT/typical answer is a LOW probability (~0.10-0.20).\n"
             "- Assign a HIGH probability (>0.6) ONLY when the impacts show "
             "SYSTEMIC, escalating, contagion-style stress concentrated in time — "
-            "e.g. a major exchange/stablecoin failure, cascading liquidations, or "
-            "insolvency spreading across multiple portfolio assets at once.\n"
+            "e.g. a macro shock, cascading sell-offs, panic, or distress "
+            "spreading across multiple portfolio assets at once.\n"
             "- Distinguish a normal stream of negative chatter (LOW) from a sharp, "
             "broad escalation beyond the usual baseline (HIGH). Spread your "
             "probabilities across the 0..1 range; do not anchor every day to one "
@@ -234,13 +237,13 @@ class ReasoningLLM(ABC):
             "  -> {\"crash_prob\": 0.10, \"rationale\": \"ordinary negative noise; "
             "no systemic or contagion signal\"}\n"
             "Example B — broad escalation, ELEVATED:\n"
-            "  several negative impacts clustering the SAME day across BTC and ETH "
-            "(a large hack, a regulatory crackdown) but contained to a sub-sector\n"
+            "  several negative impacts clustering the SAME day across multiple assets "
+            "(a sector shock, a regulatory crackdown) but contained to a sub-sector\n"
             "  -> {\"crash_prob\": 0.45, \"rationale\": \"notable stress but not yet "
             "portfolio-wide contagion\"}\n"
             "Example C — systemic contagion, CRASH imminent:\n"
-            "  dense same-day negatives — a major exchange/stablecoin insolvency "
-            "cascading to BTC, ETH and SOL together with liquidation language\n"
+            "  dense same-day negatives — a macro/systemic shock "
+            "cascading across the whole portfolio at once with panic-selling language\n"
             "  -> {\"crash_prob\": 0.88, \"rationale\": \"simultaneous portfolio-wide "
             "failure; classic contagion cascade\"}\n\n"
             "Now assess TODAY from the tuples above.\n"
@@ -291,11 +294,12 @@ class ReasoningLLM(ABC):
 
     def reason_multi(self, tuples_list: list[list[tuple]], contexts: list[str],
                     max_new_tokens: int = 256, n_samples: int = 1,
-                    temperature: float = 0.0) -> list[tuple[float, str]]:
+                    temperature: float = 0.0,
+                    universe: list[str] | None = None) -> list[tuple[float, str]]:
         """Batched Reasoning. With n_samples>1 and temperature>0 this does
         SELF-CONSISTENCY: sample several reasoning traces per day and average the
         crash probabilities (test-time compute scaling)."""
-        prompts = [self._reason_prompt(t, c) for t, c in zip(tuples_list, contexts)]
+        prompts = [self._reason_prompt(t, c, universe) for t, c in zip(tuples_list, contexts)]
 
         def parse(raw):
             data = extract_json(raw) or {}
@@ -329,6 +333,7 @@ class ReasoningLLM(ABC):
         max_new_tokens: int = 256,
         n_samples: int = 1,
         temperature: float = 0.0,
+        universe: list[str] | None = None,
     ) -> list[tuple[float, str]]:
         """Batched price-direction Reasoning.
 
@@ -338,7 +343,7 @@ class ReasoningLLM(ABC):
         temperature>0 averages the up-probabilities). Returns one
         (up_prob, rationale) per day.
         """
-        prompts = [self._reason_prompt_direction(t, c)
+        prompts = [self._reason_prompt_direction(t, c, universe)
                    for t, c in zip(tuples_list, contexts)]
 
         def parse(raw):
@@ -365,25 +370,27 @@ class ReasoningLLM(ABC):
                 for i, ps in enumerate(sample_probs)]
 
     @staticmethod
-    def _reason_prompt_direction(tuples: list[tuple], context: str) -> str:
+    def _reason_prompt_direction(tuples: list[tuple], context: str,
+                                 universe: list[str] | None = None) -> str:
         lines = "\n".join(
             f"  ({t[0]:%Y-%m-%d}, {t[1]}, {'+' if t[2] >= 0 else '-'}, {t[3]})"
             for t in tuples
         )
+        uni = ", ".join(universe) if universe else "BTC, ETH, SOL, BNB, AVAX, DOGE"
         return (
             "You are forecasting the next-day PRICE DIRECTION of an equal-weight "
-            "crypto portfolio (BTC, ETH, SOL, BNB, AVAX, DOGE) from a graph of "
+            f"portfolio ({uni}) from a graph of "
             "dated, directed news-impact relations (time, subject, polarity, "
             "object).\n"
             f"{context}\n"
             f"Impact tuples:\n{lines}\n\n"
             "CALIBRATION — read carefully:\n"
             "- Estimate up_prob = P(portfolio closes HIGHER tomorrow than today).\n"
-            "- Daily crypto direction is near a coin-flip, so the DEFAULT is "
+            "- Daily price direction is near a coin-flip, so the DEFAULT is "
             "~0.50. Move away from 0.50 only when the impacts lean clearly one "
-            "way: a preponderance of POSITIVE impacts (adoption, ETF inflows, "
-            "upgrades) pushes up_prob ABOVE 0.50; a preponderance of NEGATIVE "
-            "impacts (hacks, bans, liquidations) pushes it BELOW 0.50.\n"
+            "way: a preponderance of POSITIVE impacts (strong earnings, upgrades, "
+            "inflows) pushes up_prob ABOVE 0.50; a preponderance of NEGATIVE "
+            "impacts (downgrades, shocks, sell-offs) pushes it BELOW 0.50.\n"
             "- Weight by breadth and strength: many strong same-day impacts hitting "
             "multiple assets justify a larger move from 0.50 than one mild item. "
             "Spread your probabilities; do not anchor every day to 0.50.\n\n"
@@ -392,12 +399,12 @@ class ReasoningLLM(ABC):
             "  a couple of small positives and negatives roughly cancelling\n"
             "  -> {\"up_prob\": 0.50, \"rationale\": \"balanced impacts; no edge\"}\n"
             "Example B — broad positive flow:\n"
-            "  several strong positive impacts (ETF approval, inflows, upgrades) "
-            "across BTC and ETH the same day, few negatives\n"
+            "  several strong positive impacts (upgrades, strong results, inflows) "
+            "across multiple assets the same day, few negatives\n"
             "  -> {\"up_prob\": 0.68, \"rationale\": \"broad bullish catalysts lean up\"}\n"
             "Example C — broad negative flow:\n"
-            "  dense same-day negatives (a major hack and a regulatory ban) hitting "
-            "BTC, ETH and SOL together\n"
+            "  dense same-day negatives (a macro shock and broad downgrades) hitting "
+            "multiple assets together\n"
             "  -> {\"up_prob\": 0.30, \"rationale\": \"broad bearish shock leans down\"}\n\n"
             "Now assess TODAY from the tuples above.\n"
             "Return ONLY JSON: {\"up_prob\": 0..1, \"rationale\": \"...\"}.\n"
@@ -501,7 +508,8 @@ class MockLLM(ReasoningLLM):
             edges.extend(self.extract_impacts(news, candidate_assets))
         return edges
 
-    def predict_crash(self, tuples: list[tuple], context: str = "") -> tuple[float, str]:
+    def predict_crash(self, tuples: list[tuple], context: str = "",
+                      universe: list[str] | None = None) -> tuple[float, str]:
         if not tuples:
             return 0.0, "no impacts"
         neg = sum(1 for t in tuples if t[2] < 0)
@@ -517,7 +525,7 @@ class MockLLM(ReasoningLLM):
                 for items in day_items_list]
 
     def reason_multi(self, tuples_list, contexts, max_new_tokens=256,
-                    n_samples=1, temperature=0.0):
+                    n_samples=1, temperature=0.0, universe=None):
         return [self.predict_crash(t, c) for t, c in zip(tuples_list, contexts)]
 
     def predict_direction(self, tuples: list[tuple], context: str = "") -> tuple[float, str]:
@@ -534,7 +542,7 @@ class MockLLM(ReasoningLLM):
         return prob, f"{pos}/{len(tuples)} positive impacts toward portfolio"
 
     def reason_multi_direction(self, tuples_list, contexts, max_new_tokens=256,
-                               n_samples=1, temperature=0.0):
+                               n_samples=1, temperature=0.0, universe=None):
         return [self.predict_direction(t, c) for t, c in zip(tuples_list, contexts)]
 
     def reason_multi_per_asset(self, tuples_list, contexts, assets, max_new_tokens=320):
