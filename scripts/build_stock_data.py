@@ -14,7 +14,10 @@ import os
 import pandas as pd
 
 TICKERS = ["AAPL", "AMZN", "GOOGL", "NVDA", "TSLA", "NFLX"]
-START, END = "2019-06-01", "2020-06-15"
+# Wide backtest window: dense news for these 6 tickers starts ~2016 (earlier
+# years are <1 headline/day). Sharded into 6-month chunks downstream.
+START = os.environ.get("STOCK_START", "2016-01-01")
+END = os.environ.get("STOCK_END", "2020-06-15")
 OUT = "data/stockdata"
 NEWS_SRC = "data/stocknews"
 
