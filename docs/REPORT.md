@@ -228,6 +228,32 @@ clean same-model self-consistency sweep was flat (K=1 0.524 -> K=3 0.531 -> K=5
 blend, **isotonic calibration** (held-out Brier 0.199 -> 0.048), and the de-risk
 strategy — not added capacity or test-time compute.
 
+### 5.7 Stock meta-learner — when training DOES help (2016-2023, 1,555 days)
+
+The §5.6 negatives are from the small crypto window (few events). On the larger
+stock dataset (9 analyst-news shards 2016-2020 + 5 FNSPID shards 2021-2023;
+1,555 days, 72 crashes) a trained meta-learner (`train/`) over the LLM signal +
+price technicals tells a more favourable story:
+
+- **Out-of-time / cross-source** (train 2016-2020 → test 2021-2023): trained GBM
+  0.682 vs LLM zero-shot 0.557 — **training helps (+0.13)**; but the LLM's
+  `crash_prob` is penalised by news-source shift, so it looks technical-driven.
+- **Within-source fairness** (time-split inside each source): the full ensemble
+  (technicals **+** LLM) beats technical-only by **+0.03 to +0.08** (2016-2020
+  0.695 vs 0.665; 2021-2023 0.629 vs 0.552) — i.e. **the LLM signal genuinely
+  adds value over technicals when evaluated fairly.**
+- **Calibration:** isotonic recalibration cuts Brier **0.139 → 0.073**
+  (`reports/figures/reliability.png`).
+- **Precision@K:** P@10 = **0.20 (3.2× base rate)**, P@20 0.15, P@30 0.13.
+- **Economic (stock, leak-free walk-forward de-risk overlay):** **+205% return /
+  −45.0% max drawdown / 0.97 Sharpe** vs buy-and-hold +161% / −50.2% / 0.80
+  (`reports/figures/backtest_equity.png`).
+
+Reconciliation: at very low event counts (crypto) learned heads overfit and
+underperform; with more data **and** a leakage-controlled, source-matched
+evaluation (stock 2016-2023), a small regularised meta-learner is a modest but
+real improvement — and its economic payoff is robust.
+
 ---
 
 ## 6. Feasibility Analysis
