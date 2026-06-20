@@ -45,6 +45,17 @@ service always comes up.
 - `GET /health` → `{status, backend, model_loaded}`
 - `POST /crash-risk` → body: JSON list of `{timestamp, headline, assets?}`;
   returns `{crash_prob, n_edges, rationale, asof, backend}`.
+- `POST /predict` → run the **actual** `TRRPipeline` end-to-end over one or more
+  days. Body is either a multi-day stream
+  `{"days":[{"date":"YYYY-MM-DD","headlines":[{"title","assets?","timestamp?"}]}]}`
+  or a single day's `{"headlines":[...]}`. Returns
+  `{crash_prob, n_edges, pruned_edges:[{subject,object,polarity,weight}], rationale, asof, backend}`
+  for the most recent day. Uses the MockLLM backend by default; if the env var
+  `SMALL_MODEL` is set it reasons with the real `trr.llm.HFReasoningLLM`
+  (degrading to MockLLM if the model can't be loaded).
+- `GET /backtest` → aggregated offline campaign AUROC results read from
+  `reports/stock_runs/campaign/*.json` (falling back to `reports/RESULTS_TRR.md`).
+  Returns `{n_windows, mean_trr_auroc, mean_news_volume_auroc, windows:[{window, trr_auroc, news_volume_auroc}], source}`.
 - `GET /volatility` → latest LSTM next-window volatility, or
   `{available: false, reason}` if the model / feature store is absent.
 - `GET /signal/latest` → newest row from the crash-signal Parquet store, or a
@@ -87,6 +98,25 @@ curl -s localhost:8000/crash-risk -H 'content-type: application/json' -d '[
   {"timestamp":"2026-06-20T09:00:00Z","headline":"Major exchange hacked, BTC plunges in liquidation cascade","assets":["BTC"]},
   {"timestamp":"2026-06-20T10:00:00Z","headline":"ETH dumps as contagion fear spreads","assets":["ETH"]}
 ]'
+
+# End-to-end TRRPipeline prediction (single day):
+curl -s localhost:8000/predict -H 'content-type: application/json' -d '{
+  "headlines":[
+    {"title":"Major exchange hacked, BTC plunges in liquidation cascade","assets":["BTC"]},
+    {"title":"ETH dumps as contagion fear spreads","assets":["ETH"]}
+  ]
+}'
+
+# Offline backtest (campaign AUROC summary):
+curl -s localhost:8000/backtest
+```
+
+## Tests
+
+```bash
+cd /home/nduong/dev/bigdata
+.venv/bin/pip install pytest fastapi httpx uvicorn
+.venv/bin/python -m pytest serving/tests/ -q
 ```
 
 ## Paper trading (`serving/paper_trader.py`)
