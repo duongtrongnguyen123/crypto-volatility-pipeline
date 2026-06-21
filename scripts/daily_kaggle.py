@@ -117,7 +117,7 @@ def _to_report(out):
     last = d.iloc[-1]
     sig = {"crash_prob": float(last["crash_prob"]), "edges": [],
            "rationale": str(last.get("rationale", "")),
-           "backend": "Qwen2.5-32B (Kaggle RTX 6000 Pro)",
+           "backend": "Qwen2.5-32B",
            "asof": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     adv = compose_advisory(sig)
     adv["n_headlines"] = int(last.get("n_news", 0))

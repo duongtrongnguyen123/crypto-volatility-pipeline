@@ -151,7 +151,8 @@ with tab_live:
             lvl = adv["risk_level"]
             st.markdown(f"### Risk: <span style='color:{_RISK_COLOR.get(lvl,'#666')}'>"
                         f"{lvl}</span>", unsafe_allow_html=True)
-            st.caption(f"as of {adv.get('asof','?')} · {adv.get('backend','?')}")
+            st.caption(f"as of {adv.get('asof','?')} · "
+                       f"{str(adv.get('backend','?')).split(' (')[0]}")
         with col_a:
             if adv.get("at_risk_assets"):
                 ar = adv["at_risk_assets"]
@@ -172,15 +173,12 @@ with tab_live:
             st.caption("Rationale: " + str(adv["rationale"])[:300])
         st.caption("⚠️ " + adv.get("disclaimer", "Research output — not financial advice."))
     else:
-        st.info("No daily report yet — run `.venv/bin/python -m scripts.daily_report "
-                "[--backend 7b]` (cron once a day).")
+        st.info("Daily advisory will appear here after the next daily run.")
 
     st.markdown("---")
-    st.subheader("📡 Live market monitor — giám sát & tóm tắt tin")
-    st.caption("**Descriptive, not a prediction.** This panel monitors + summarizes the "
-               "live news flow (recency-weighted) — it does NOT output a 3-day crash "
-               "probability. The crash **prediction** is the **Daily advisory** above "
-               "(daily cadence = the 3-day horizon). Deployment demo (live news unlabeled).")
+    st.subheader("📡 Live market monitor")
+    st.caption("Live summary of the current news flow (newest first). "
+               "The 3-day crash prediction is the Daily advisory above.")
     _interval = st.selectbox("Auto-refresh", [30, 60, 120, 300], index=1,
                              format_func=lambda s: f"every {s}s")
     _stress_color = {"High": "#dc2626", "Elevated": "#d97706", "Low": "#16a34a"}
@@ -249,10 +247,8 @@ with tab_live:
     _live_panel()
 
     st.markdown("#### 📰 Live news feed")
-    st.caption("Company + **macro** headlines (Fed, rates, VIX, geopolitics), "
-               "newest first, sentiment-tinted, with 🆕 badges. **Display only** — "
-               "high-frequency news shown for context; the crash *prediction* stays "
-               "the daily 3-day advisory above (we don't predict at this cadence).")
+    st.caption("Live headlines — company, macro, crypto, world — newest first, "
+               "color-tinted by sentiment; 🆕 marks new arrivals.")
     _NEG = ("crash slump plunge fall drop fear hack ban lawsuit selloff sell-off "
             "tumble sink slide warn cut loss recession halt panic downgrade").split()
     _POS = ("surge soar rally gain jump rise beat upgrade record high boom approve "
@@ -434,7 +430,7 @@ with tab_research:
             with fcol2:
                 st.plotly_chart(lib.build_backtest_figure(_fd), width="stretch")
         else:
-            st.info("Run `.venv/bin/python -m train.figures` to generate figure data.")
+            st.info("Figures will appear here once results are available.")
 
 # ===========================================================================
 # TAB 3 — HOW IT WORKS
