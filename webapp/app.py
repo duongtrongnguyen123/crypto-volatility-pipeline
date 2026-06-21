@@ -223,8 +223,8 @@ with tab_live:
     fc1, fc2, fc3 = st.columns([1, 1, 1])
     _feed_rate = fc1.selectbox("Feed refresh", [10, 15, 30, 60], index=1,
                                format_func=lambda s: f"every {s}s", key="feedrate")
-    _filter = fc2.selectbox("Filter", ["All", "🌐 Macro only", "🏢 Companies only"],
-                            key="feedfilter")
+    _filter = fc2.selectbox("Filter", ["All", "🏢 Companies", "🌐 Macro", "₿ Crypto",
+                                       "🌍 World"], key="feedfilter")
     _show_n = fc3.slider("Show last", 20, 200, 40, 10, key="feedshow",
                          help="Display only — does not affect the prediction "
                               "(the model uses ~20–40/day regardless).")
@@ -233,7 +233,8 @@ with tab_live:
     def _news_feed():
         from webapp import live as _live
         try:
-            heads = _live.fetch_live_headlines(include_macro=True, max_per=12)
+            heads = _live.fetch_live_headlines(include_macro=True, include_crypto=True,
+                                               include_world=True, max_per=12)
             # ACCUMULATE across refreshes: new headlines append into a persistent
             # store (keyed by title), newest kept on top, capped at 200.
             store = st.session_state.get("feed_store", {})
@@ -248,16 +249,24 @@ with tab_live:
                     store[k]["new"] = False
             items = sorted(store.values(), key=lambda r: r["ts"], reverse=True)[:200]
             st.session_state["feed_store"] = {r["title"]: r for r in items}
+            def _kind(tag):
+                return ("MACRO" if tag.startswith("MACRO") else
+                        "CRYPTO" if tag.startswith("CRYPTO") else
+                        "WORLD" if tag == "WORLD" else "TICKER")
             view = items
-            if _filter.startswith("🌐"):
-                view = [r for r in items if r["tag"].startswith("MACRO")]
-            elif _filter.startswith("🏢"):
-                view = [r for r in items if not r["tag"].startswith("MACRO")]
+            fmap = {"🌐 Macro": "MACRO", "₿ Crypto": "CRYPTO", "🌍 World": "WORLD",
+                    "🏢 Companies": "TICKER"}
+            if _filter in fmap:
+                view = [r for r in items if _kind(r["tag"]) == fmap[_filter]]
             st.caption(f"showing {min(_show_n, len(view))} of {len(view)} accumulated "
                        f"· 🆕 {fresh} new this refresh · source: Yahoo Finance (yfinance) "
                        f"· display only (model predicts on ~20–40/day)")
+            _STYLE = {"MACRO": ("🌐", "#fef3c7", "#b45309"),
+                      "CRYPTO": ("₿", "#fae8ff", "#a21caf"),
+                      "WORLD": ("🌍", "#dbeafe", "#1d4ed8"),
+                      "TICKER": ("🏢", "#eef2ff", "#3730a3")}
             for r in view[:_show_n]:
-                tag = r["tag"]; macro = tag.startswith("MACRO")
+                tag = r["tag"]; icon, bg, col = _STYLE[_kind(tag)]
                 low = r["title"].lower()
                 senti = ("#dc2626" if any(w in low for w in _NEG) else
                          "#16a34a" if any(w in low for w in _POS) else "#334155")
@@ -268,10 +277,9 @@ with tab_live:
                     f"<div style='padding:3px 0;border-bottom:1px solid #eef;"
                     f"animation:fadein .5s ease'>"
                     f"<span style='color:#94a3b8;font-size:0.76rem'>{t}</span> "
-                    f"<span style='background:{'#fef3c7' if macro else '#eef2ff'};"
-                    f"color:{'#b45309' if macro else '#3730a3'};border-radius:6px;"
+                    f"<span style='background:{bg};color:{col};border-radius:6px;"
                     f"padding:1px 7px;font-size:0.7rem;font-weight:600'>"
-                    f"{'🌐' if macro else '🏢'} {tag}</span> {badge}"
+                    f"{icon} {tag}</span> {badge}"
                     f"<span style='color:{senti}'>{r['title']}</span> "
                     f"<span style='color:#cbd5e1;font-size:0.72rem'>· {r['src']}</span></div>",
                     unsafe_allow_html=True)

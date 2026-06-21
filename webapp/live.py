@@ -13,19 +13,50 @@ TICKERS = ["AAPL", "AMZN", "GOOGL", "NVDA", "TSLA", "NFLX"]
 # Macro / market-wide news (the corpus is otherwise company-finance-heavy and
 # macro-light) — index/rate/vol tickers surface Fed, rates, geopolitics, market.
 MACRO = {"^GSPC": "MKT", "^IXIC": "MKT", "^VIX": "VIX", "^TNX": "RATES"}
+CRYPTO = {"BTC-USD": "BTC", "ETH-USD": "ETH"}  # crypto market news
 
 
-def fetch_live_headlines(tickers=TICKERS, max_per: int = 6, include_macro: bool = True):
-    """Current headlines via yfinance -> list[NewsItem] (today).
+def fetch_world_headlines(max_items: int = 15):
+    """World politics / events / geopolitics via Google News RSS (no API key)."""
+    import urllib.request
+    import xml.etree.ElementTree as ET
+    from email.utils import parsedate_to_datetime
+    from trr.schema import NewsItem
+    url = ("https://news.google.com/rss/search?q=world+politics+OR+geopolitics+OR+"
+           "election+OR+war+OR+sanctions+when:2d&hl=en-US&gl=US&ceid=US:en")
+    out = []
+    try:
+        raw = urllib.request.urlopen(url, timeout=15).read()
+        for it in ET.fromstring(raw).findall(".//item")[:max_items]:
+            title = (it.findtext("title") or "").strip()
+            if not title:
+                continue
+            try:
+                ts = parsedate_to_datetime(it.findtext("pubDate")).replace(tzinfo=None)
+            except Exception:  # noqa: BLE001
+                ts = datetime.now(timezone.utc).replace(tzinfo=None)
+            src = title.rsplit(" - ", 1)[-1] if " - " in title else "Google News"
+            out.append(NewsItem(id=f"world-{len(out)}", timestamp=ts,
+                                title=title, source=src, assets=["WORLD"]))
+    except Exception:  # noqa: BLE001
+        pass
+    return out
 
-    Pulls per-ticker company news plus, when include_macro, market/macro headlines
-    (Fed, rates, VIX, geopolitics) from index tickers — tagged with a MACRO label.
+
+def fetch_live_headlines(tickers=TICKERS, max_per: int = 6, include_macro: bool = True,
+                         include_crypto: bool = False, include_world: bool = False):
+    """Current headlines -> list[NewsItem] (today).
+
+    Company news (yfinance) + optional MACRO (indices/rates/VIX), CRYPTO (BTC/ETH),
+    and WORLD (politics/geopolitics via Google News RSS). Crypto/world default OFF
+    for the prediction path (corpus is finance/macro); the display feed turns them ON.
     """
     import yfinance as yf
     from trr.schema import NewsItem
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     items, seen = [], set()
-    sources = list(tickers) + (list(MACRO) if include_macro else [])
+    sources = (list(tickers) + (list(MACRO) if include_macro else [])
+               + (list(CRYPTO) if include_crypto else []))
     for t in sources:
         try:
             news = getattr(yf.Ticker(t), "news", []) or []
@@ -45,12 +76,18 @@ def fetch_live_headlines(tickers=TICKERS, max_per: int = 6, include_macro: bool 
                     ts = datetime.fromisoformat(str(pub).replace("Z", "+00:00")).replace(tzinfo=None)
                 except ValueError:
                     pass
-            tag = f"MACRO:{MACRO[t]}" if t in MACRO else t
+            if t in MACRO:
+                tag = f"MACRO:{MACRO[t]}"
+            elif t in CRYPTO:
+                tag = f"CRYPTO:{CRYPTO[t]}"
+            else:
+                tag = t
             prov = c.get("provider")
             pub = prov.get("displayName") if isinstance(prov, dict) else None
             items.append(NewsItem(id=f"{t}-{i}", timestamp=ts, title=title,
-                                  source=pub or ("Yahoo (macro)" if t in MACRO else "Yahoo"),
-                                  assets=[tag]))
+                                  source=pub or "Yahoo", assets=[tag]))
+    if include_world:
+        items += fetch_world_headlines()
     return items
 
 
