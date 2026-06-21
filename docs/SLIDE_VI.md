@@ -23,7 +23,7 @@
 
 ### SLIDE 1 — Trang bìa
 **② Nội dung**
-- **Tiêu đề lớn:** Dự đoán Sụp đổ Giá Cổ phiếu bằng Suy luận Quan hệ–Thời gian của LLM
+- **Tiêu đề lớn:** Dự đoán Sụp đổ Giá Cổ phiếu bằng Suy luận Quan hệ theo Thời gian của LLM
 - **Phụ đề:** Đồ án Big Data · phỏng theo arXiv:2410.17266
 - Nhóm: [TÊN NHÓM] · Thành viên: [TÊN] · GVHD: [TÊN GV] · [HỌC KỲ/NĂM]
 
@@ -53,12 +53,12 @@
 - **Đầu vào:** dòng tin tài chính theo ngày cho 6 cổ phiếu: AAPL, AMZN, GOOGL, NVDA, TSLA, NFLX.
 - **Đầu ra:** P(danh mục equal-weight giảm ≥ 6% trong 3 ngày tới) cho mỗi ngày.
 - **Nhãn:** từ giá lịch sử OHLCV (ngày crash nếu low 3 ngày tới ≤ −6%).
-- **Đánh giá:** AUROC / PR-AUC. **Nhân quả:** chỉ dùng quá khứ (embargo ≥ chân trời 3 ngày).
+- **Đánh giá:** AUROC / PR-AUC. **Nhân quả:** chỉ dùng quá khứ (embargo ≥ tầm dự báo 3 ngày).
 
 **🎨 Hình ảnh — sơ đồ luồng ngang (flowchart, 4 khối + mũi tên):**
 > `[📰 Tin ngày t]` → `[🤖 Mô hình TRR]` → `[📊 P(crash 3 ngày tới)]` → `[⚖️ So với giá thực tế → nhãn]`. Khối đầu màu xám, khối mô hình màu xanh lá nổi bật, khối xác suất có thanh gauge nhỏ, khối nhãn màu đỏ. Đường kẻ mảnh, bo góc.
 
-**🎤 Ghi chú:** Giải thích ngưỡng −6% và chân trời 3 ngày là quy ước "crash danh mục".
+**🎤 Ghi chú:** Giải thích ngưỡng −6% và tầm dự báo 3 ngày là quy ước "crash danh mục".
 
 ---
 
@@ -78,7 +78,7 @@
 ### SLIDE 5 — Phương pháp TRR: 4 Pha
 **② Nội dung**
 - **1. Brainstorm:** tin → đồ thị tác động ("X tác động ±Y", có trọng số).
-- **2. Memory:** trí nhớ phân rã `R = exp(−t·λ)` — tin xấu nhạt dần theo thời gian.
+- **2. Memory:** bộ nhớ phân rã `R = exp(−t·λ)` — tin xấu nhạt dần theo thời gian.
 - **3. Attention:** PageRank cắt tỉa xuống top-k cạnh gần danh mục nhất.
 - **4. Reason:** LLM suy luận trên đồ thị con → xác suất sụp đổ.
 
@@ -91,12 +91,12 @@
 
 ### SLIDE 6 — RAG: Truy hồi Tăng cường
 **② Nội dung**
-- **Vai trò 1 — Chọn lọc:** từ bể tin lớn mỗi ngày, lấy k tin liên quan-danh-mục nhất → LLM chỉ đọc phần giới hạn.
+- **Vai trò 1 — Chọn lọc:** từ kho tin lớn mỗi ngày, lấy k tin liên quan-danh-mục nhất → LLM chỉ đọc phần giới hạn.
 - **Vai trò 2 — Few-shot theo tình huống:** truy hồi các NGÀY QUÁ KHỨ tương tự + kết cục thật ("từng crash/không") chèn vào prompt.
 - Nhờ vậy corpus to cỡ GB nhưng **chi phí LLM vẫn O(số_ngày × k)**. Hoàn toàn nhân quả.
 
 **🎨 Hình ảnh — 2 sơ đồ nhỏ cạnh nhau:**
-> TRÁI ("Chọn lọc"): hình phễu lớn "Bể tin 4,5 triệu bài/ngày" → lọc → "20 tin/ngày" → icon 🤖 LLM. TexT trên phễu: "RAG select".
+> TRÁI ("Chọn lọc"): hình phễu lớn "Kho tin 4,5 triệu bài/ngày" → lọc → "20 tin/ngày" → icon 🤖 LLM. Chữ trên phễu: "RAG select".
 > PHẢI ("Few-shot lịch sử"): một dòng thời gian ngang; ô "HÔM NAY" màu xanh; 2–3 ô quá khứ được nối bằng nét đứt tới hôm nay, gắn nhãn đỏ "đã CRASH" / xám "không". Chú thích: "Hôm nay giống ngày crash nào trong quá khứ?"
 
 **🎤 Ghi chú:** Bài học sẽ nói ở slide 16: "liên quan ≠ liên quan-danh-mục".
@@ -133,8 +133,8 @@
 
 ### SLIDE 9 — Kiến trúc Lưu trữ: "Lưu khổng lồ, phục vụ tí hon"
 **② Nội dung**
-- **Lạnh:** corpus 12 GB (đĩa). **Ấm:** SQLite chỉ mục theo ngày 1,9 GB (tra cứu 1 ngày ~44 ms). **Nóng:** lát RAG ~2 MB (tải lên Kaggle).
-- Kỹ thuật: stream-and-filter (không lưu 23 GB thô), đọc theo khối (RAM-bounded), chiếu cột, chỉ mục phân vùng, chọn lọc RAG.
+- **Lạnh:** corpus 12 GB (đĩa). **Ấm:** SQLite chỉ mục theo ngày 1,9 GB (tra cứu 1 ngày ~44 ms). **Nóng:** phần RAG đã chọn ~2 MB (tải lên Kaggle).
+- Kỹ thuật: stream-and-filter (không lưu 23 GB thô), đọc theo từng khối (giới hạn RAM), chỉ đọc cột cần, chỉ mục phân vùng, chọn lọc RAG.
 - Dữ liệu dẫn xuất **không commit git** (chỉ commit code tái tạo).
 
 **🎨 Hình ảnh — sơ đồ PHỄU 3 tầng (funnel dọc):**
@@ -161,9 +161,9 @@
 
 ### SLIDE 11 — Tính toán Phân tán: 20 GPU Kaggle
 **② Nội dung**
-- Điểm nghẽn = suy luận LLM 32B → **fan-out 40 shard** (20 base + 20 RAG).
+- Điểm nghẽn = suy luận LLM 32B → **phân tán thành 40 mảnh (shard)** (20 base + 20 RAG).
 - **20 tài khoản Kaggle × 2 notebook** = 40 khe GPU → chạy trong **1 đợt**.
-- Mỗi shard ~101 ngày + **ngân hàng lookback toàn lịch sử** (giữ nhân quả khi chia shard theo ngày).
+- Mỗi shard ~101 ngày + **kho ngày lịch sử đầy đủ (lookback)** (giữ nhân quả khi chia shard theo ngày).
 - **~20 phút/đợt** thay vì ~5 giờ chạy đơn; 0 lỗi xác thực.
 
 **🎨 Hình ảnh — (a) lưới GPU + (b) thanh thời gian:**

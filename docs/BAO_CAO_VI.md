@@ -1,5 +1,5 @@
 # BÁO CÁO ĐỒ ÁN BIG DATA
-## Suy luận Quan hệ Thời gian của Mô hình Ngôn ngữ Lớn để Dự đoán Sụp đổ Giá Cổ phiếu
+## Suy luận Quan hệ theo Thời gian của Mô hình Ngôn ngữ Lớn để Dự đoán Sụp đổ Giá Cổ phiếu
 ### (Temporal Relational Reasoning of LLMs for Stock Crash Prediction — phỏng theo arXiv:2410.17266)
 
 > Ghi chú: Các chỗ đánh dấu 「điền sau」 là kết quả đang chạy (mẻ Kaggle toàn bộ corpus 2016–2023 với lọc theo danh mục) — sẽ điền số khi có. Các con số đã có là số thật đã đo.
@@ -20,7 +20,7 @@ Trọng tâm Big Data: xử lý nguồn tin **23 GB / 15,7 triệu bài** (FNSPI
 
 - Thị trường tài chính sinh dữ liệu **khối lượng lớn, tốc độ cao, đa dạng** — bài toán Big Data điển hình.
 - Dự đoán **hướng giá** (lên/xuống) gần như bất khả thi (giả thuyết thị trường hiệu quả dạng yếu). Nhưng **rủi ro đuôi / sụp đổ** mang tín hiệu từ tin tức (tâm lý, sự kiện, lan truyền) → khả thi hơn.
-- Ý tưởng cốt lõi: thay vì huấn luyện mô hình dự báo, ta để **LLM suy luận** về quan hệ nhân quả giữa các thực thể tin tức và danh mục, có **trí nhớ thời gian** (tác động xấu lưu lại và phân rã dần).
+- Ý tưởng cốt lõi: thay vì huấn luyện mô hình dự báo, ta để **LLM suy luận** về quan hệ nhân quả giữa các thực thể tin tức và danh mục, có **bộ nhớ theo thời gian** (tác động xấu lưu lại và phân rã dần).
 
 **Use case:** cảnh báo sớm rủi ro sụp đổ danh mục cho nhà đầu tư/quản trị rủi ro — một advisory hằng ngày, không phải lệnh giao dịch.
 
@@ -31,7 +31,7 @@ Trọng tâm Big Data: xử lý nguồn tin **23 GB / 15,7 triệu bài** (FNSPI
 - **Đầu vào:** dòng tin tức tài chính theo ngày cho danh mục 6 cổ phiếu: **AAPL, AMZN, GOOGL, NVDA, TSLA, NFLX**.
 - **Đầu ra:** với mỗi ngày *t*, xác suất danh mục (equal-weight) **giảm ≥ 6%** trong cửa sổ 3 ngày tới (nhãn crash).
 - **Đánh giá:** AUROC / PR-AUC trên backtest có nhãn (giá lịch sử cung cấp nhãn).
-- **Ràng buộc nhân quả:** không rò rỉ tương lai — RAG chỉ truy hồi các ngày trong quá khứ vượt ngưỡng embargo ≥ chân trời nhãn.
+- **Ràng buộc nhân quả:** không rò rỉ tương lai — RAG chỉ truy hồi các ngày trong quá khứ vượt ngưỡng embargo ≥ tầm dự báo của nhãn.
 
 ---
 
@@ -60,7 +60,7 @@ Trọng tâm Big Data: xử lý nguồn tin **23 GB / 15,7 triệu bài** (FNSPI
 ## 5. Phương pháp TRR (4 pha)
 
 1. **Brainstorm:** LLM đọc tin trong ngày → trích **đồ thị tác động** (cạnh "X tác động ±Y", trọng số [0,1]).
-2. **Memory (Trí nhớ phân rã):** cập nhật bộ nhớ với cạnh mới; tác động cũ **phân rã theo hàm mũ** (λ) → tin xấu vẫn nâng rủi ro nhiều ngày, rồi nhạt dần ("temporal").
+2. **Memory (Bộ nhớ phân rã):** cập nhật bộ nhớ với cạnh mới; tác động cũ **phân rã theo hàm mũ** (λ) → tin xấu vẫn nâng rủi ro nhiều ngày, rồi nhạt dần ("temporal").
 3. **Attention (PageRank):** cắt tỉa đồ thị gộp xuống *top-k* cạnh gần danh mục nhất.
 4. **Reason:** LLM suy luận trên đồ thị con + tóm tắt bộ nhớ → **xác suất sụp đổ**.
 
@@ -71,8 +71,8 @@ Trọng tâm Big Data: xử lý nguồn tin **23 GB / 15,7 triệu bài** (FNSPI
 ## 6. RAG — Truy hồi Tăng cường
 
 Hai vai trò, cả hai đều đưa thêm ngữ cảnh vào LLM:
-1. **Chọn lọc theo truy hồi (retrieval-selection):** từ một bể tin lớn mỗi ngày, chọn *k* tin **liên quan nhất** → LLM chỉ đọc phần đã giới hạn (giữ chi phí LLM = O(số_ngày × k) dù corpus lớn cỡ GB).
-2. **Few-shot theo tình huống (case-based / "ngân hàng lookback"):** truy hồi các **ngày quá khứ tương tự** (TF-IDF) và chèn kết cục thực tế ("ngày này từng crash / không crash") vào prompt suy luận. Hoàn toàn **nhân quả** (chỉ nhìn quá khứ vượt embargo).
+1. **Chọn lọc theo truy hồi (retrieval-selection):** từ một kho tin lớn mỗi ngày, chọn *k* tin **liên quan nhất** → LLM chỉ đọc phần đã giới hạn (giữ chi phí LLM = O(số_ngày × k) dù corpus lớn cỡ GB).
+2. **Few-shot theo tình huống (case-based / "kho ngày lịch sử"):** truy hồi các **ngày quá khứ tương tự** (TF-IDF) và chèn kết cục thực tế ("ngày này từng crash / không crash") vào prompt suy luận. Hoàn toàn **nhân quả** (chỉ nhìn quá khứ vượt embargo).
 
 **Bài học quan trọng (kết quả trung thực):** chọn lọc theo *độ liên quan với truy vấn crash trên TOÀN bộ 4.775 mã* làm **giảm tín hiệu** (bơm từ vựng "crash" vào cả ngày yên tĩnh, và lấy tin không thuộc danh mục) → AUROC tụt dưới mức ngẫu nhiên. Khắc phục: **lọc theo mã trong danh mục trước**, rồi xếp hạng theo độ nổi bật (salience). *Liên quan ≠ liên quan-tới-danh-mục.*
 
@@ -85,9 +85,9 @@ Hai vai trò, cả hai đều đưa thêm ngữ cảnh vào LLM:
 |---|---|---|
 | Lạnh / khối | corpus 2016–2023 | 12 GB (đĩa cục bộ) |
 | Ấm / chỉ mục | **SQLite lập chỉ mục theo ngày** | 1,9 GB (tra cứu 1 ngày ~44 ms) |
-| Nóng / phục vụ | lát cắt RAG đã chọn | ~2 MB (tải lên Kaggle) |
+| Nóng / phục vụ | phần tin RAG đã chọn | ~2 MB (tải lên Kaggle) |
 
-Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo khối (chunked, RAM-bounded)**, **chiếu cột (usecols, bỏ body)**, **chỉ mục phân vùng (SQLite)**, **chọn lọc RAG**. Dữ liệu dẫn xuất **không commit vào git** (chỉ commit code tái tạo).
+Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo từng khối (giới hạn RAM)**, **chỉ đọc các cột cần (bỏ cột nội dung)**, **chỉ mục phân vùng (SQLite)**, **chọn lọc RAG**. Dữ liệu dẫn xuất **không commit vào git** (chỉ commit code tái tạo).
 
 ### 7.2 Xử lý phân tán bằng Spark
 - **Spark batch ETL:** đọc corpus 12 GB → ghi **Parquet phân vùng theo năm** (bố cục data-lake kiểu HDFS: cột hóa + nén + cắt tỉa phân vùng).
@@ -96,8 +96,8 @@ Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo
 - **Spark Structured Streaming** cho luồng tin/giá trực tiếp (pha velocity).
 
 ### 7.3 Tính toán phân tán trên Kaggle
-- Suy luận LLM 32B là điểm nghẽn → **fan-out 40 shard** (20 base + 20 RAG) trên **20 tài khoản Kaggle**, mỗi tài khoản 2 notebook GPU.
-- Mỗi shard dự đoán ~101 ngày, gắn **ngân hàng lookback toàn lịch sử** để giữ tính nhân quả khi chia shard theo ngày.
+- Suy luận LLM 32B là điểm nghẽn → **phân tán thành 40 mảnh (shard)** (20 base + 20 RAG) trên **20 tài khoản Kaggle**, mỗi tài khoản 2 notebook GPU.
+- Mỗi shard dự đoán ~101 ngày, gắn **kho ngày lịch sử đầy đủ (lookback)** để giữ tính nhân quả khi chia shard theo ngày.
 - Một "đợt" duy nhất ≈ **~20 phút** thay vì ~5 giờ chạy đơn.
 
 ---
