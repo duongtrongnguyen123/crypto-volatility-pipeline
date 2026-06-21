@@ -13,7 +13,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.patches import FancyBboxPatch
-import seaborn as sns
+try:
+    import seaborn as sns
+except ModuleNotFoundError:  # optional; only some figures use it
+    sns = None
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / 'reports'
@@ -38,8 +41,9 @@ plt.rcParams.update({
     'figure.titlesize': 16,
     'figure.constrained_layout.use': True,
 })
-sns.set_style('whitegrid')
-sns.set_palette('muted')
+if sns is not None:
+    sns.set_style('whitegrid')
+    sns.set_palette('muted')
 
 
 # =========================================================================
@@ -429,58 +433,66 @@ def fig11_roc_curve():
 # 12. Pipeline architecture diagram
 # =========================================================================
 def fig12_pipeline_architecture():
-    fig, ax = plt.subplots(figsize=(11.5, 5.2))
+    # Lambda architecture for STOCK-portfolio crash prediction (matches report §5):
+    # data sources -> Batch(32B/Kaggle) + Speed(7B-AWQ live) -> serving.
+    fig, ax = plt.subplots(figsize=(12, 6.8))
     ax.set_xlim(0, 12)
-    ax.set_ylim(0, 5.5)
+    ax.set_ylim(0.3, 6.7)
     ax.axis('off')
 
     C = {'ingest': '#2980b9', 'process': '#d35400', 'serve': '#27ae60',
          'trr': '#8e44ad', 'ml': '#c0392b'}
 
-    def box(x, y, w, h, color, text, sub='', alpha=0.9):
+    def box(x, y, w, h, color, text, sub='', alpha=0.92):
         p = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
                            facecolor=color, edgecolor='white', lw=2, alpha=alpha)
         ax.add_patch(p)
-        ax.text(x + w/2, y + h*0.65, text, ha='center', va='center',
-                fontsize=9, fontweight='bold', color='white')
+        ty = y + h*0.62 if sub else y + h*0.5
+        ax.text(x + w/2, ty, text, ha='center', va='center',
+                fontsize=9.5, fontweight='bold', color='white')
         if sub:
-            ax.text(x + w/2, y + h*0.28, sub, ha='center', va='center',
-                    fontsize=6.5, color='white', alpha=0.9)
+            ax.text(x + w/2, y + h*0.27, sub, ha='center', va='center',
+                    fontsize=7, color='white', alpha=0.95)
 
-    def arr(x1, y1, x2, y2, lbl='', c='gray'):
-        ax.annotate('', xy=(x2, y2), xytext=(x1, y1),
-                    arrowprops=dict(arrowstyle='->', lw=1.5, color=c))
-        if lbl:
-            ax.text((x1+x2)/2, (y1+y2)/2+0.12, lbl, ha='center', fontsize=6, color='gray', style='italic')
+    def down(cx, y1, y2):
+        ax.annotate('', xy=(cx, y2), xytext=(cx, y1),
+                    arrowprops=dict(arrowstyle='->', lw=1.4, color='#7f8c8d'))
 
-    ax.text(0.3, 5.2, 'TIER 1: Data Ingestion', fontsize=11, fontweight='bold', color=C['ingest'])
-    for dx, t, s in [(0.2,'Price Data','Binance WS\naggTrade'),(2.2,'News','CryptoPanic\nREST'),
-                      (4.2,'Futures','Binance\nOI+funding'),(6.2,'Depth','Order book\n@100ms'),
-                      (8.2,'Liq.','Force order\nWS')]:
-        box(dx, 3.8, 1.8, 0.9, C['ingest'], t, s)
+    # ---- TIER 1: data sources -------------------------------------------------
+    ax.text(0.3, 6.45, 'TIER 1 · Data Sources', fontsize=11, fontweight='bold', color=C['ingest'])
+    t1 = [(0.5, 'FNSPID Corpus', '12 GB / 4.5M\n2016–2023'),
+          (4.5, 'yfinance', 'prices + live news'),
+          (8.5, 'Google News RSS', 'world headlines')]
+    for x, t, s in t1:
+        box(x, 5.5, 3.0, 0.85, C['ingest'], t, s)
 
-    ax.axhline(y=3.4, xmin=0.02, xmax=0.98, lw=2, color='#2c3e50', alpha=0.5)
-    ax.text(11.5, 3.4, 'Kafka → Spark', fontsize=8, color='#2c3e50', va='center')
+    ax.axhline(y=5.15, xmin=0.03, xmax=0.97, lw=2, color='#2c3e50', alpha=0.5)
+    ax.text(6.0, 5.30, 'Spark ETL  →  Parquet (by year)  ·  date-indexed SQLite (1.9 GB)',
+            ha='center', fontsize=8, style='italic', color='#2c3e50')
+    for cx in (2.0, 10.0):   # skip centre arrow (would cross the divider caption)
+        down(cx, 5.5, 5.18)
 
-    ax.text(0.3, 3.0, 'TIER 2: Stream Processing', fontsize=11, fontweight='bold', color=C['process'])
-    box(0.2, 2.0, 2.5, 0.9, C['process'], 'Feature Engineering', '11 features / 5-min')
-    box(3.0, 2.0, 2.5, 0.9, C['process'], 'TRR Pipeline', 'Brainstorm→Memory\n→Attention→Reason')
-    box(5.8, 2.0, 2.0, 0.9, C['process'], 'Sentiment', 'FinBERT UDF')
-    box(8.0, 2.0, 2.5, 0.9, C['process'], 'Feature Join', 'Parquet store')
+    # ---- TIER 2: reasoning (batch + live) -------------------------------------
+    ax.text(0.3, 4.72, 'TIER 2 · Reasoning  (Batch + Live)', fontsize=11, fontweight='bold', color=C['process'])
+    box(0.3, 3.6, 2.7, 0.9, C['process'], 'Causal RAG', 'select k headlines/day')
+    box(3.2, 3.6, 2.7, 0.9, C['process'], 'TRR Pipeline', 'Brainstorm→Memory\n→Attention→Reason')
+    box(6.1, 3.6, 2.7, 0.9, C['trr'], 'Qwen2.5-32B', 'Kaggle · 40-shard\n(offline batch)')
+    box(9.0, 2.7, 2.7, 0.9, C['ml'], 'Qwen2.5-7B-AWQ', 'RTX 2060 · live (≈5.5 GB)')
+    down(4.55, 3.6, 3.25)
 
-    box(0.2, 0.9, 10.3, 0.5, '#2c3e50', 'Data Store: ./data/features/*.parquet', alpha=0.6)
+    # ---- data lake ------------------------------------------------------------
+    box(0.3, 2.55, 8.4, 0.5, '#2c3e50', 'Data Lake · P(crash) → Parquet (partitioned by year)', alpha=0.7)
+    down(4.5, 2.55, 1.78)
 
-    ax.text(0.3, 0.4, 'TIER 3: Serving + Live', fontsize=11, fontweight='bold', color=C['serve'])
-    box(0.2, -0.5, 2.2, 0.9, C['serve'], 'FastAPI', '/crash-risk\n/volatility')
-    box(2.6, -0.5, 2.2, 0.9, C['serve'], 'Dashboard', 'Streamlit\nlive monitor')
-    box(5.0, -0.5, 2.2, 0.9, C['serve'], 'Paper Trader', 'simulate()\nrun_live()')
-    box(7.4, -0.5, 2.2, 0.9, C['trr'], 'LSTM Vol.', 'Next-window\nforecast')
-    box(9.8, -0.5, 1.8, 0.9, C['ml'], 'Kaggle', 'Offline GPU\nRTX 6000 Pro')
+    # ---- TIER 3: serving ------------------------------------------------------
+    ax.text(0.3, 1.95, 'TIER 3 · Serving', fontsize=11, fontweight='bold', color=C['serve'])
+    t3 = [(0.5, 'FastAPI', '/crash-risk · /backtest'),
+          (4.5, 'Streamlit', 'live dashboard'),
+          (8.5, 'Daily Advisory', 'cron 05:00')]
+    for x, t, s in t3:
+        box(x, 0.85, 3.0, 0.85, C['serve'], t, s)
 
-    for dx, lbl in [(1.1,'price'),(3.1,'news'),(5.1,'futures'),(7.1,'depth'),(9.1,'liq.')]:
-        arr(dx, 3.8, dx, 3.45, lbl)
-
-    ax.set_title('System Architecture: 3-Tier Crypto Crash Prediction Pipeline',
+    ax.set_title('System Architecture · Lambda Pipeline for Stock-Portfolio Crash Prediction',
                  fontsize=14, fontweight='bold', pad=12)
     fig.savefig(FIGS / 'fig12_pipeline_architecture.png', dpi=250)
     plt.close(fig)

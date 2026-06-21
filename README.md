@@ -17,7 +17,7 @@ market efficiency, while crash risk carries a real signal from news.
 |---|---|
 | 📄 **Report (PDF)** | [`docs/BAO_CAO_VI.pdf`](docs/BAO_CAO_VI.pdf) · source: [`.tex`](docs/BAO_CAO_VI.tex) / [`.md`](docs/BAO_CAO_VI.md) |
 | 📑 **Slides (PDF)** | [`docs/SLIDE_FINAL.pdf`](docs/SLIDE_FINAL.pdf) |
-| 🎥 **Demo video** | [▶ Watch on Google Drive](https://drive.google.com/file/d/16YsmR0EKPwxffuufMp2KWej-wsMKP27m/view) (preview below) |
+| 🎥 **Demo video** | [▶ Watch on Google Drive](https://drive.google.com/file/d/1wn5p-PKhR9AFaDvI3taqRd1AVDMMN4LU/view) (preview below) |
 | 🌐 **Live web demo** | **https://bigdata-stock-crash-trr.streamlit.app** — Streamlit (Live & Advisory · Research & Backtest · How it works) |
 | 🎤 **Demo scripts** | [`docs/DEMO_VI.md`](docs/DEMO_VI.md) (talk) · [`docs/DEMO_RECORD_VI.md`](docs/DEMO_RECORD_VI.md) (recording) |
 | 📊 **Full results** | [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md) |
@@ -29,7 +29,7 @@ market efficiency, while crash risk carries a real signal from news.
 <sub>↑ Report cover (left) and Slides (right) — click to open the full PDF.</sub>
 
 ### 🎥 Demo video
-**▶ [Watch the demo video (Google Drive)](https://drive.google.com/file/d/16YsmR0EKPwxffuufMp2KWej-wsMKP27m/view)**
+**▶ [Watch the demo video (Google Drive)](https://drive.google.com/file/d/1wn5p-PKhR9AFaDvI3taqRd1AVDMMN4LU/view)**
 
 ---
 
