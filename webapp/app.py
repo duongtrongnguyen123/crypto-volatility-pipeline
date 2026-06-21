@@ -225,7 +225,7 @@ with tab_live:
                                format_func=lambda s: f"every {s}s", key="feedrate")
     _filter = fc2.selectbox("Filter", ["All", "🏢 Companies", "🌐 Macro", "₿ Crypto",
                                        "🌍 World"], key="feedfilter")
-    _show_n = fc3.slider("Show last", 20, 200, 40, 10, key="feedshow",
+    _show_n = fc3.slider("Show last", 20, 500, 200, 20, key="feedshow",
                          help="Display only — does not affect the prediction "
                               "(the model uses ~20–40/day regardless).")
 
@@ -237,7 +237,7 @@ with tab_live:
                                                include_macro=True, include_crypto=True,
                                                include_world=True, max_per=10)
             # ACCUMULATE across refreshes: new headlines append into a persistent
-            # store (keyed by title), newest kept on top, capped at 200.
+            # store (keyed by title), newest kept on top, capped at 500.
             store = st.session_state.get("feed_store", {})
             fresh = 0
             for h in heads:
@@ -248,7 +248,7 @@ with tab_live:
                                 "title": h.title, "src": h.source, "new": True}
                 else:
                     store[k]["new"] = False
-            items = sorted(store.values(), key=lambda r: r["ts"], reverse=True)[:200]
+            items = sorted(store.values(), key=lambda r: r["ts"], reverse=True)[:500]
             st.session_state["feed_store"] = {r["title"]: r for r in items}
             def _kind(tag):
                 return ("MACRO" if tag.startswith("MACRO") else
