@@ -192,7 +192,11 @@ with tab_live:
         from webapp import live as _live
         try:
             now = _dt.datetime.now(_dt.timezone.utc).strftime("%H:%M:%S")
-            prices, pmove = _live.fetch_live_prices()
+            pd_ = _live.read_live_prices()           # daemon's cached prices (instant)
+            if pd_:
+                prices, pmove = pd_["prices"], pd_["portfolio_move"]
+            else:
+                prices, pmove = _live.fetch_live_prices()
             # Read the daemon's cached summary (instant — the 7B lives in the
             # long-running daemon, never in the web). Fall back to an instant
             # rule-based summary only if the daemon isn't running.
@@ -266,9 +270,13 @@ with tab_live:
     def _news_feed():
         from webapp import live as _live
         try:
-            heads = _live.fetch_live_headlines(tickers=_live.FEED_TICKERS,
-                                               include_macro=True, include_crypto=True,
-                                               include_world=True, max_per=10)
+            # Read the daemon's rolling store (instant, no network); fall back to a
+            # live fetch only if the daemon isn't running.
+            heads = _live.read_live_feed(500)
+            if not heads:
+                heads = _live.fetch_live_headlines(tickers=_live.FEED_TICKERS,
+                                                   include_macro=True, include_crypto=True,
+                                                   include_world=True, max_per=10)
             # ACCUMULATE across refreshes: new headlines append into a persistent
             # store (keyed by title), newest kept on top, capped at 500.
             store = st.session_state.get("feed_store", {})

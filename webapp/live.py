@@ -334,6 +334,51 @@ def read_live_summary(max_age_s: int = 3600):
         return None
 
 
+# The daemon also writes prices + the rolling news store; the web reads those
+# files too, so the live tab makes ZERO network calls (instant, no yfinance/RSS).
+PRICES_PATH = "data/live/prices.json"
+NEWS_PATH = "data/live/news.jsonl"
+
+
+def read_live_prices():
+    """Read the daemon's cached prices snapshot, or None if absent."""
+    import json
+    import os
+
+    if not os.path.exists(PRICES_PATH):
+        return None
+    try:
+        return json.load(open(PRICES_PATH))     # {prices, portfolio_move, asof}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def read_live_feed(limit: int = 500):
+    """Read the daemon's rolling news store (news.jsonl) as NewsItems, newest
+    first — so the web feed needs no live fetch."""
+    import json
+    import os
+
+    from trr.schema import NewsItem
+    if not os.path.exists(NEWS_PATH):
+        return []
+    rows = []
+    for line in open(NEWS_PATH):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            r = json.loads(line)
+            ts = datetime.fromtimestamp(r["ts"], timezone.utc).replace(tzinfo=None)
+            rows.append(NewsItem(id=str(r.get("id", "")), timestamp=ts,
+                                 title=r["title"], source="yfinance",
+                                 assets=[r["ticker"]]))
+        except Exception:  # noqa: BLE001
+            pass
+    rows.sort(key=lambda it: it.timestamp, reverse=True)
+    return rows[:limit]
+
+
 def _get_llm(use_local_7b: bool):
     """MockLLM (instant) or the local Qwen2.5-7B-AWQ on the 2060 (cached)."""
     if not use_local_7b:
