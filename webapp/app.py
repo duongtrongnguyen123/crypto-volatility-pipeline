@@ -231,24 +231,35 @@ with tab_live:
         from webapp import live as _live
         try:
             heads = _live.fetch_live_headlines(include_macro=True, max_per=12)
-            heads = sorted(heads, key=lambda h: h.timestamp, reverse=True)
-            if _filter.startswith("🌐"):
-                heads = [h for h in heads if h.assets[0].startswith("MACRO")]
-            elif _filter.startswith("🏢"):
-                heads = [h for h in heads if not h.assets[0].startswith("MACRO")]
-            heads = heads[:50]
-            prev = st.session_state.get("feed_seen", set())
-            now_ids = {h.id + h.title for h in heads}
-            st.caption(f"{len(heads)} headlines · 🆕 {len(now_ids - prev)} new this refresh")
+            # ACCUMULATE across refreshes: new headlines append into a persistent
+            # store (keyed by title), newest kept on top, capped at 200.
+            store = st.session_state.get("feed_store", {})
+            fresh = 0
             for h in heads:
-                tag = h.assets[0]; macro = tag.startswith("MACRO")
-                low = h.title.lower()
+                k = h.title
+                if k not in store:
+                    fresh += 1
+                    store[k] = {"ts": h.timestamp, "tag": h.assets[0],
+                                "title": h.title, "src": h.source, "new": True}
+                else:
+                    store[k]["new"] = False
+            items = sorted(store.values(), key=lambda r: r["ts"], reverse=True)[:200]
+            st.session_state["feed_store"] = {r["title"]: r for r in items}
+            view = items
+            if _filter.startswith("🌐"):
+                view = [r for r in items if r["tag"].startswith("MACRO")]
+            elif _filter.startswith("🏢"):
+                view = [r for r in items if not r["tag"].startswith("MACRO")]
+            st.caption(f"{len(view)} headlines accumulated · 🆕 {fresh} new this refresh "
+                       f"· source: Yahoo Finance (yfinance)")
+            for r in view[:80]:
+                tag = r["tag"]; macro = tag.startswith("MACRO")
+                low = r["title"].lower()
                 senti = ("#dc2626" if any(w in low for w in _NEG) else
                          "#16a34a" if any(w in low for w in _POS) else "#334155")
-                isnew = (h.id + h.title) not in prev
                 badge = ("<span style='background:#dc2626;color:#fff;border-radius:4px;"
-                         "padding:0 5px;font-size:0.66rem'>🆕</span> " if isnew and prev else "")
-                t = h.timestamp.strftime("%m-%d %H:%M")
+                         "padding:0 5px;font-size:0.66rem'>🆕</span> " if r.get("new") else "")
+                t = r["ts"].strftime("%m-%d %H:%M")
                 st.markdown(
                     f"<div style='padding:3px 0;border-bottom:1px solid #eef;"
                     f"animation:fadein .5s ease'>"
@@ -257,9 +268,9 @@ with tab_live:
                     f"color:{'#b45309' if macro else '#3730a3'};border-radius:6px;"
                     f"padding:1px 7px;font-size:0.7rem;font-weight:600'>"
                     f"{'🌐' if macro else '🏢'} {tag}</span> {badge}"
-                    f"<span style='color:{senti}'>{h.title}</span></div>",
+                    f"<span style='color:{senti}'>{r['title']}</span> "
+                    f"<span style='color:#cbd5e1;font-size:0.72rem'>· {r['src']}</span></div>",
                     unsafe_allow_html=True)
-            st.session_state["feed_seen"] = now_ids
         except Exception as exc:  # noqa: BLE001
             st.caption(f"news feed unavailable: {exc}")
 

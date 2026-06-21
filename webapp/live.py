@@ -46,8 +46,10 @@ def fetch_live_headlines(tickers=TICKERS, max_per: int = 6, include_macro: bool 
                 except ValueError:
                     pass
             tag = f"MACRO:{MACRO[t]}" if t in MACRO else t
+            prov = c.get("provider")
+            pub = prov.get("displayName") if isinstance(prov, dict) else None
             items.append(NewsItem(id=f"{t}-{i}", timestamp=ts, title=title,
-                                  source="yfinance-macro" if t in MACRO else "yfinance",
+                                  source=pub or ("Yahoo (macro)" if t in MACRO else "Yahoo"),
                                   assets=[tag]))
     return items
 
