@@ -10,7 +10,7 @@
 
 Đồ án xây dựng một hệ thống **dự đoán xác suất sụp đổ (crash)** của một danh mục cổ phiếu vốn hóa lớn trong **~3 ngày giao dịch tới**, bằng cách cho một **mô hình ngôn ngữ lớn (LLM) đọc tin tức tài chính** và suy luận **zero-shot** (không huấn luyện lại mô hình). Phương pháp gồm 4 pha: **Brainstorm → Memory → Attention → Reason**, kèm **RAG** (truy hồi tăng cường) để bám vào các tiền lệ lịch sử.
 
-Trọng tâm Big Data: xử lý nguồn tin **23 GB / 15,7 triệu bài** (FNSPID) bằng kỹ thuật **stream-process, lập chỉ mục phân vùng, và chọn lọc bằng RAG**, kết hợp **tính toán phân tán** (Spark cho ETL, 20 tài khoản GPU Kaggle cho suy luận LLM).
+Trọng tâm Big Data: xử lý nguồn tin **23 GB / 15,7 triệu bài** (FNSPID) bằng kỹ thuật **stream-process, lập chỉ mục phân vùng, và chọn lọc bằng RAG**, kết hợp **tính toán phân tán** (Spark cho ETL, pool GPU Kaggle free-tier cho suy luận LLM).
 
 **Kết quả chính:** Cửa sổ khủng hoảng COVID đạt **AUROC 0.785** (có RAG **0.847**); giai đoạn rộng 2016–2020 đạt **0.710**. RAG là cải thiện ổn định và có ý nghĩa thống kê (+0.074, p=0.009 ở quy mô lớn). Mở rộng sang corpus toàn bộ 2016–2023 (lọc theo danh mục): base **0.615** / RAG **0.652** — hồi phục mạnh sau khi sửa lỗi chọn lọc, nhưng *không vượt* bộ tin bundled gốc (chi tiết §9.2).
 
@@ -95,10 +95,10 @@ Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo
 - **Cùng một code chạy trên cluster thật** chỉ bằng cách đổi `SPARK_MASTER=spark://host:7077`.
 - **Spark Structured Streaming** cho luồng tin/giá trực tiếp (pha velocity).
 
-### 7.3 Tính toán phân tán trên Kaggle
-- Suy luận LLM 32B là điểm nghẽn → **phân tán thành 40 mảnh (shard)** (20 base + 20 RAG) trên **20 tài khoản Kaggle**, mỗi tài khoản 2 notebook GPU.
-- Mỗi shard dự đoán ~101 ngày, gắn **kho ngày lịch sử đầy đủ (lookback)** để giữ tính nhân quả khi chia shard theo ngày.
-- Một "đợt" duy nhất ≈ **~20 phút** thay vì ~5 giờ chạy đơn.
+### 7.3 Tính toán phân tán (fan-out GPU)
+- Suy luận LLM 32B là điểm nghẽn → **phân tán thành 40 mảnh (shard)** (20 base + 20 RAG) chạy song song trên một **pool GPU miễn phí** → một "đợt" ≈ **~20 phút** thay vì ~5 giờ chạy tuần tự.
+- Mỗi shard dự đoán ~101 ngày, gắn **kho ngày lịch sử đầy đủ (lookback)** để giữ tính nhân quả khi chia theo ngày.
+- **Tính hợp lệ (trung thực):** đây là *mẫu thiết kế* phân tán — cùng code chạy được trên cluster cloud/HPC trả phí. Pool ở đây dựng từ GPU free-tier của Kaggle (giải pháp sinh viên, không phải cluster chính thức); **bản chạy 1 tài khoản ~5 giờ cho kết quả y hệt**, nên kết quả KHÔNG phụ thuộc vào cách phân tán.
 
 ---
 
@@ -142,7 +142,7 @@ Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo
 - Tải corpus: ~39 MB/s, resumable; lọc cục bộ 22 GB → 12 GB.
 - Chỉ mục SQLite: 1,9 GB, tra cứu ngày COVID (4.098 bài) trong 44 ms.
 - Spark ETL: 12 GB → 718 MB Parquet / 101 s; truy vấn Parquet 4,5 triệu dòng / 2,4 s.
-- Kaggle: 40 shard / 20 tài khoản, 0 lỗi xác thực, ~20 phút/đợt.
+- Kaggle: 40 shard song song trên pool GPU free-tier, 0 lỗi xác thực, ~20 phút/đợt.
 
 ---
 
@@ -152,7 +152,7 @@ Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo
 - **Các kết quả âm trung thực (đã thử, không cải thiện):** Graph-RAG đa bước, phân loại hướng 3 lớp, đặc trưng khối lượng OHLCV, đặc trưng meta từ RAG — đều không tăng ngoài-thời-gian.
 - **Hướng giá ≈ ngẫu nhiên** (EMH dạng yếu); rủi ro đuôi/crash mới là mục tiêu khả thi.
 - **Bẫy Big Data đã gặp & sửa:** mở rộng sang corpus 4,5 triệu bài *toàn mã* + chọn theo truy vấn crash **làm giảm tín hiệu** (liên quan ≠ liên quan-danh-mục). Sửa bằng lọc theo danh mục.
-- **Phạm vi phân tán:** kỹ thuật stream/partition/index trên một máy + Spark (pseudo-distributed, `local[*]`, code sẵn sàng cho cluster) + 20 GPU Kaggle. Không phải cluster HDFS/Spark nhiều máy thật — nêu rõ để trung thực.
+- **Phạm vi phân tán:** kỹ thuật stream/partition/index trên một máy + Spark (pseudo-distributed, `local[*]`, code sẵn sàng cho cluster) + pool GPU Kaggle free-tier. Không phải cluster HDFS/Spark nhiều máy thật — nêu rõ để trung thực.
 
 ---
 

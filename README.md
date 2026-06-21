@@ -31,7 +31,7 @@ market efficiency, while crash risk carries a real signal from news.
 
 **Distributed processing:**
 - **Apache Spark** batch ETL: 12 GB corpus → **Parquet partitioned by year** (data-lake layout); 12 GB→718 MB in 101 s; queries read 4.5M rows in 2.4 s (~40×, partition-pruned). Same code runs on a cluster via `SPARK_MASTER=spark://…`.
-- **20 Kaggle GPUs**: the 32B LLM backtest fans out to **40 shards** (20 base + 20 RAG) across 20 accounts × 2 notebooks — one ~20-minute wave instead of ~5 h.
+- **Distributed fan-out**: the 32B backtest splits into **40 shards** (20 base + 20 RAG) run in parallel on a free Kaggle GPU pool — one ~20-min wave vs ~5 h single-run (same result; same code runs on a paid cloud/HPC cluster).
 
 ---
 

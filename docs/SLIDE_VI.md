@@ -159,18 +159,18 @@
 
 ---
 
-### SLIDE 11 — Tính toán Phân tán: 20 GPU Kaggle
+### SLIDE 11 — Tính toán Phân tán: Fan-out GPU
 **② Nội dung**
-- Điểm nghẽn = suy luận LLM 32B → **phân tán thành 40 mảnh (shard)** (20 base + 20 RAG).
-- **20 tài khoản Kaggle × 2 notebook** = 40 khe GPU → chạy trong **1 đợt**.
-- Mỗi shard ~101 ngày + **kho ngày lịch sử đầy đủ (lookback)** (giữ nhân quả khi chia shard theo ngày).
-- **~20 phút/đợt** thay vì ~5 giờ chạy đơn; 0 lỗi xác thực.
+- Điểm nghẽn = suy luận LLM 32B → **phân tán thành 40 mảnh (shard)** (20 base + 20 RAG) chạy song song.
+- Chạy trên một **pool GPU miễn phí** → cả 40 mảnh trong **1 đợt ~20 phút** thay vì ~5 giờ chạy tuần tự.
+- Mỗi shard ~101 ngày + **kho ngày lịch sử đầy đủ (lookback)** (giữ nhân quả khi chia theo ngày).
+- *Cùng code chạy được trên cluster cloud/HPC trả phí*; **chạy 1 máy cho KẾT QUẢ Y HỆT** → phân tán chỉ để TĂNG TỐC.
 
-**🎨 Hình ảnh — (a) lưới GPU + (b) thanh thời gian:**
-> (a) Lưới 20 ô tài khoản, mỗi ô có 2 chip GPU nhỏ (tổng 40), tô màu xanh lá "đang chạy". Nhãn "20 tài khoản × 2 notebook = 40 shard".
-> (b) Hai thanh ngang so sánh wall-clock: "Chạy đơn 1 notebook ≈ 5 giờ" (thanh đỏ rất dài) vs "Phân tán 40 shard ≈ 20 phút" (thanh xanh ngắn). Nhấn mạnh tỉ lệ rút gọn ~15×.
+**🎨 Hình ảnh — (a) sơ đồ fan-out + (b) thanh thời gian:**
+> (a) Một "bộ điều phối" ở giữa toả ra 40 ô GPU nhỏ song song (lưới 8×5), tô xanh lá "đang chạy". Nhãn "40 mảnh song song trên pool GPU".
+> (b) Hai thanh ngang so sánh wall-clock: "Chạy tuần tự 1 GPU ≈ 5 giờ" (thanh đỏ dài) vs "Phân tán 40 mảnh ≈ 20 phút" (thanh xanh ngắn). Nhấn tỉ lệ rút gọn ~15×.
 
-**🎤 Ghi chú:** Vì điểm nghẽn là LLM (không phải join dữ liệu) nên ta phân tán SUY LUẬN, không phải phân tán file.
+**🎤 Ghi chú (trung thực):** Đây là *mẫu thiết kế phân tán* — cùng code chạy trên cluster cloud/HPC thật. Pool ở đây dựng từ GPU free-tier Kaggle (giải pháp sinh viên, không phải cluster chính thức); **bản chạy 1 tài khoản ~5 giờ cho cùng số**, nên kết quả không phụ thuộc cách phân tán. Vì điểm nghẽn là LLM (không phải join dữ liệu) nên ta phân tán SUY LUẬN.
 
 ---
 
@@ -234,7 +234,7 @@
 - **Small-N là trần:** chỉ 14–82 ngày crash (~4%) → đọc AUROC tuyệt đối thận trọng.
 - **Kết quả âm trung thực:** Graph-RAG đa bước, hướng 3 lớp, đặc trưng khối lượng OHLCV, meta-RAG — đều không tăng.
 - **Bẫy Big Data đã gặp:** corpus toàn-mã + chọn theo truy vấn crash **làm giảm tín hiệu** (liên quan ≠ liên quan-danh-mục) → đã sửa bằng lọc danh mục.
-- **Phạm vi phân tán:** Spark pseudo-distributed + 20 GPU Kaggle (không phải cluster HDFS nhiều máy) — nêu rõ, code sẵn cho cluster.
+- **Phạm vi phân tán:** Spark pseudo-distributed + pool GPU Kaggle free-tier (không phải cluster HDFS nhiều máy) — nêu rõ, code sẵn cho cluster.
 
 **🎨 Hình ảnh — bảng "✓/✗" trung thực:**
 > Bảng 2 cột: "Điều đã hoạt động ✅" (RAG ổn định, stream-index-select, Spark+Kaggle) và "Giới hạn / kết quả âm ❌" (small-N, Graph-RAG, hướng 3 lớp, OHLCV volume, bẫy chọn lọc toàn-mã). Dùng icon ✓ xanh / ✗ đỏ. Tông trung tính, nghiêm túc.
@@ -245,7 +245,7 @@
 
 ### SLIDE 17 — Kết luận & Hướng phát triển
 **② Nội dung**
-- **Kết luận:** TRR zero-shot + RAG dự đoán rủi ro sụp đổ từ tin tức (AUROC tốt ở cửa sổ khủng hoảng); **RAG cải thiện ổn định**; xử lý nguồn 23 GB bằng stream-index-select + Spark + 20 GPU Kaggle.
+- **Kết luận:** TRR zero-shot + RAG dự đoán rủi ro sụp đổ từ tin tức (AUROC tốt ở cửa sổ khủng hoảng); **RAG cải thiện ổn định**; xử lý nguồn 23 GB bằng stream-index-select + Spark + pool GPU phân tán.
 - **Hướng phát triển:** cluster Spark/HDFS nhiều máy thật; corpus đa nguồn (mạng xã hội, filing); hiệu chỉnh xác suất & ngưỡng theo chi phí; mở rộng đa tài sản.
 
 **🎨 Hình ảnh — sơ đồ tổng kết pipeline end-to-end (1 dải ngang):**
@@ -264,7 +264,7 @@
 > Nền tối giản, chữ "Q&A" lớn ở giữa, logo nhóm + QR code trỏ tới repo GitHub ở góc. Thu nhỏ sơ đồ pipeline (slide 17) làm watermark mờ phía sau.
 
 **🎤 Ghi chú — câu hỏi hay gặp & trả lời nhanh:**
-- "HDFS/Spark cluster đâu?" → có Spark (pseudo-distributed, code sẵn cho cluster) + 20 GPU Kaggle; điểm nghẽn là LLM nên ưu tiên phân tán suy luận.
+- "HDFS/Spark cluster đâu?" → có Spark (pseudo-distributed, code sẵn cho cluster) + pool GPU free-tier; điểm nghẽn là LLM nên ưu tiên phân tán suy luận.
 - "Sao AUROC không cao tuyệt đối?" → small-N + dự đoán rủi ro đuôi xuyên nhiều năm yên tĩnh là khó; chỉ số trung thực, không cherry-pick.
 - "Tin trực tiếp chính xác bao nhiêu?" → không nhãn, chỉ chứng minh triển khai; độ chính xác từ backtest lịch sử có nhãn.
 - "Vì sao −6% / 3 ngày?" → quy ước crash danh mục equal-weight; đủ hiếm để là rủi ro đuôi, đủ thường để đánh giá thống kê.
