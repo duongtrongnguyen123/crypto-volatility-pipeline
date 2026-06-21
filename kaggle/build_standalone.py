@@ -9,7 +9,7 @@ Output: kaggle/trr_standalone.py  (set as code_file for a fresh kernel).
 import os
 
 MODULES = ["schema", "llm", "memory", "attention", "brainstorm",
-           "reason", "pipeline", "news", "labels", "rag"]
+           "reason", "pipeline", "news", "labels", "rag", "graphrag"]
 
 HEADER = '''"""TRR crypto crash detection — SELF-CONTAINED Kaggle kernel (Qwen / Nemotron).
 
@@ -191,6 +191,9 @@ def main():
                              batch_size=GEN_BATCH_SIZE, max_input_tokens=MAX_INPUT_TOKENS)
 
     print(f"[kernel] window {start}..{end}  news_items={len(news)}", flush=True)
+    use_graphrag = os.environ.get("USE_GRAPHRAG", "0") == "1"
+    if use_graphrag:
+        print("[kernel] multi-hop Graph-RAG ENABLED", flush=True)
     use_rag = os.environ.get("USE_RAG", "0") == "1"
     rag, rag_labels = None, None
     if use_rag:
@@ -204,7 +207,7 @@ def main():
                        per_asset=PER_ASSET, reason_samples=REASON_SAMPLES,
                        reason_temp=REASON_TEMP, reason_max_new_tokens=REASON_MAXTOK,
                        brainstorm_max_new_tokens=BRAINSTORM_MAXTOK,
-                       rag=rag, rag_labels=rag_labels)
+                       rag=rag, rag_labels=rag_labels, multi_hop=use_graphrag)
     pred = pipe.run(group_by_day(news), start=start, end=end)
     print(f"[kernel] predicted {len(pred)} days", flush=True)
 
