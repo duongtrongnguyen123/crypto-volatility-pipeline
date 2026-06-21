@@ -36,14 +36,15 @@ def stage_data():
     import pandas as pd
     import yfinance as yf
     from webapp.live import fetch_live_headlines
-    os.makedirs(f"{STAGE}/prices", exist_ok=True)
+    os.makedirs(STAGE, exist_ok=True)
     start = (datetime.now(timezone.utc) - timedelta(days=WINDOW_DAYS * 3)).strftime("%Y-%m-%d")
     for t in TICKERS:
         df = yf.download(t, start=start, progress=False, auto_adjust=True)
         close = df["Close"]; close = close[t] if hasattr(close, "columns") else close
+        # top-level files (the kernel globs **/AAPL.csv) — avoids subdir/zip upload issues
         pd.DataFrame({"date": pd.to_datetime(df.index).strftime("%Y-%m-%d"),
                       "close": close.to_numpy().ravel()}).to_csv(
-            f"{STAGE}/prices/{t}.csv", index=False)
+            f"{STAGE}/{t}.csv", index=False)
     heads = fetch_live_headlines(max_per=12)
     rows = [{"date": h.timestamp.strftime("%Y-%m-%d"), "title": h.title,
              "assets": h.assets[0], "source": "yfinance"} for h in heads]
@@ -58,13 +59,17 @@ def push_dataset():
     meta = {"title": "Stock live bundle", "id": DATASET,
             "licenses": [{"name": "other"}], "isPrivate": True}
     json.dump(meta, open(f"{STAGE}/dataset-metadata.json", "w"))
-    r = _sh(KG, "datasets", "version", "-p", STAGE, "-m", "daily", "--dir-mode", "zip")
-    if "not found" in (r.stderr + r.stdout).lower() or "404" in (r.stderr + r.stdout):
-        _sh(KG, "datasets", "create", "-p", STAGE, "--dir-mode", "zip")
-    for _ in range(15):
-        time.sleep(8)
-        if "stocknews" in _sh(KG, "datasets", "files", DATASET).stdout:
+    # upload top-level files individually (no zip/subdir); version, else create
+    r = _sh(KG, "datasets", "version", "-p", STAGE, "-m", "daily")
+    if any(s in (r.stderr + r.stdout).lower() for s in ("not found", "404", "does not exist")):
+        _sh(KG, "datasets", "create", "-p", STAGE)
+    for _ in range(20):  # wait until the price files are actually queryable
+        time.sleep(10)
+        files = _sh(KG, "datasets", "files", DATASET).stdout
+        if "AAPL.csv" in files and "stocknews" in files:
+            print("[daily-kaggle] dataset ready (AAPL.csv + stocknews present)")
             return True
+    print("[daily-kaggle] WARN: dataset files not confirmed; proceeding")
     return True
 
 
