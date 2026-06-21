@@ -58,11 +58,25 @@ st.markdown(
       /* SMOOTH auto-refresh: never dim/blur stale content on rerun */
       [data-stale="true"], [data-stale="true"] * {
         opacity: 1 !important; filter: none !important; transition: none !important; }
-      [data-testid="stStatusWidget"] { display: none !important; }   /* hide 'Running…' */
-      .stSpinner { display: none !important; }
+      [data-testid="stStatusWidget"] { display: none !important; }   /* hide rerun 'Running…' (keep st.spinner for explicit heavy runs) */
       /* live content eases in instead of flashing */
       [data-testid="stMetric"], .stPlotlyChart { transition: opacity .5s ease; }
       @keyframes fadein { from { opacity: .55; } to { opacity: 1; } }
+      /* LIVE pulsing indicator (shows the monitor is actively analysing) */
+      .live-badge { display:inline-flex; align-items:center; gap:7px;
+        background:#ecfdf5; color:#15803d; border:1px solid #86efac;
+        border-radius:999px; padding:3px 12px; font-size:0.8rem; font-weight:700; }
+      .live-dot { width:9px; height:9px; border-radius:50%; background:#16a34a;
+        animation: pulse 1.3s infinite; }
+      @keyframes pulse {
+        0%   { box-shadow:0 0 0 0 rgba(22,163,74,.65); }
+        70%  { box-shadow:0 0 0 9px rgba(22,163,74,0); }
+        100% { box-shadow:0 0 0 0 rgba(22,163,74,0); } }
+      /* spinning gear for heavy (7B / Kaggle) analysis */
+      .analyzing { display:inline-flex; align-items:center; gap:7px; color:#b45309;
+        font-weight:600; }
+      .spin { display:inline-block; animation: spin 1s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
     </style>""", unsafe_allow_html=True)
 
 _RISK_COLOR = {"HIGH": "#dc2626", "ELEVATED": "#d97706", "LOW": "#16a34a"}
@@ -172,6 +186,11 @@ with tab_live:
         try:
             snap = _live.read_daemon_snapshot() or _live.live_snapshot(use_local_7b=False)
             sig = snap["signal"]
+            st.markdown(
+                f"<span class='live-badge'><span class='live-dot'></span>LIVE</span> "
+                f"<span style='color:#64748b;font-size:0.82rem'>analysing news · "
+                f"auto-refresh {_interval}s · updated {sig['asof'][-8:]}</span>",
+                unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 1, 1])
             with c1:
                 st.plotly_chart(gauge(sig["crash_prob"], "Live (heuristic, instant)"),
