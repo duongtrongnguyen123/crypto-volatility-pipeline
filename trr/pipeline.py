@@ -164,6 +164,11 @@ class TRRPipeline:
             from trr.select import select_salient
             day_news = [select_salient(dn, self.max_items_per_day, self.portfolio)
                         for dn in day_news]
+        elif self.select_mode == "rag":  # retrieve most crash/portfolio-relevant
+            from trr.select import crash_query, select_relevant
+            q = crash_query(self.portfolio)
+            day_news = [select_relevant(dn, q, self.max_items_per_day, self.portfolio)
+                        for dn in day_news]
 
         # Phase A — batched brainstorming.
         edges_per_day = self.llm.brainstorm_multi(

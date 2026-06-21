@@ -61,6 +61,46 @@ def select_salient(items, k: int, portfolio=None, jaccard: float = 0.7):
     return out
 
 
+def select_relevant(items, query: str, k: int, portfolio=None):
+    """RAG-style selection: from a LARGE daily pool, retrieve the k headlines most
+    RELEVANT to a crash/portfolio query (TF-IDF cosine), then drop near-dups.
+
+    This lets the underlying news corpus scale (thousands/day, many tickers) while
+    the LLM reads only the bounded, most-relevant slice — the LLM effectively
+    'draws from' the big pool via retrieval. Falls back to salience if TF-IDF is
+    unavailable or the day is tiny.
+    """
+    if len(items) <= k:
+        return items
+    try:
+        import numpy as np
+        from sklearn.feature_extraction.text import TfidfVectorizer
+    except Exception:  # noqa: BLE001
+        return select_salient(items, k, portfolio)
+    docs = [_norm(it.title) or "__empty__" for it in items]
+    vec = TfidfVectorizer(max_features=4096, stop_words="english", ngram_range=(1, 2))
+    m = vec.fit_transform(docs).astype(np.float32)
+    q = vec.transform([_norm(query)]).astype(np.float32)
+    sims = np.asarray((m @ q.T).todense()).ravel()
+    order = np.argsort(-sims)
+    out, out_tok = [], []
+    for j in order:
+        it = items[j]; tk = _tokens(it.title)
+        if any(len(tk & o) / max(1, len(tk | o)) >= 0.7 for o in out_tok):
+            continue
+        out.append(it); out_tok.append(tk)
+        if len(out) >= k:
+            break
+    return out
+
+
+# default crash-relevance query for the portfolio (used by select_mode="rag")
+def crash_query(portfolio) -> str:
+    return (" ".join(portfolio) + " crash selloff plunge tumble fall fear hack ban "
+            "lawsuit fed rates inflation recession contagion liquidation downgrade "
+            "sanctions war geopolitical bankruptcy default panic")
+
+
 if __name__ == "__main__":
     import time
     from datetime import datetime
@@ -78,3 +118,6 @@ if __name__ == "__main__":
         print(f"  {n:5} headlines -> {len(sel)} selected in {1000*(time.time()-t0):.1f} ms")
     assert len(select_salient(items, 40, ["AAPL"])) == 40
     print("[select] bounded output as volume grows — LLM cost stays O(days*k)")
+    # RAG-relevance selection from a large pool
+    rel = select_relevant(items, crash_query(["AAPL", "NVDA"]), 40, ["AAPL", "NVDA"])
+    print(f"[select] RAG-relevance: {len(items)} -> {len(rel)} most crash-relevant")
