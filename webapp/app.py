@@ -220,11 +220,14 @@ with tab_live:
             "tumble sink slide warn cut loss recession halt panic downgrade").split()
     _POS = ("surge soar rally gain jump rise beat upgrade record high boom approve "
             "win growth profit strong buy bullish").split()
-    fc1, fc2 = st.columns([1, 1])
+    fc1, fc2, fc3 = st.columns([1, 1, 1])
     _feed_rate = fc1.selectbox("Feed refresh", [10, 15, 30, 60], index=1,
                                format_func=lambda s: f"every {s}s", key="feedrate")
     _filter = fc2.selectbox("Filter", ["All", "🌐 Macro only", "🏢 Companies only"],
                             key="feedfilter")
+    _show_n = fc3.slider("Show last", 20, 200, 40, 10, key="feedshow",
+                         help="Display only — does not affect the prediction "
+                              "(the model uses ~20–40/day regardless).")
 
     @st.fragment(run_every=_feed_rate)
     def _news_feed():
@@ -250,9 +253,10 @@ with tab_live:
                 view = [r for r in items if r["tag"].startswith("MACRO")]
             elif _filter.startswith("🏢"):
                 view = [r for r in items if not r["tag"].startswith("MACRO")]
-            st.caption(f"{len(view)} headlines accumulated · 🆕 {fresh} new this refresh "
-                       f"· source: Yahoo Finance (yfinance)")
-            for r in view[:80]:
+            st.caption(f"showing {min(_show_n, len(view))} of {len(view)} accumulated "
+                       f"· 🆕 {fresh} new this refresh · source: Yahoo Finance (yfinance) "
+                       f"· display only (model predicts on ~20–40/day)")
+            for r in view[:_show_n]:
                 tag = r["tag"]; macro = tag.startswith("MACRO")
                 low = r["title"].lower()
                 senti = ("#dc2626" if any(w in low for w in _NEG) else
