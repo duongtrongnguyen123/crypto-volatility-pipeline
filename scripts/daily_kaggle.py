@@ -129,10 +129,12 @@ def _to_report(out):
 
 
 def main():
+    import sys
     wstart, end = stage_data()
     push_dataset()
     push_kernel(wstart, end)
-    poll_and_fetch()
+    adv = poll_and_fetch()
+    sys.exit(0 if adv else 1)  # non-zero lets the cron fall back to local 7B
 
 
 if __name__ == "__main__":
