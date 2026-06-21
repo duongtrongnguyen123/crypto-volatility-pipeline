@@ -493,15 +493,17 @@ context. 32B A/B:
 | Variant | crash AUROC |
 |---|---|
 | baseline | 0.530 |
-| + multi-hop Graph-RAG (shared-driver) | 0.528 |
+| + Graph-RAG (shared-driver) | 0.529 |
+| + Graph-RAG (chain-eliciting, genuine multi-hop) | 0.527 |
 
-**No gain** in this run. Caveat: MockLLM/standard brainstorm emits flat
-entity->asset graphs, so only the shared-driver signal fired (true chains need
-the LLM to emit intermediate links). A **chain-eliciting brainstorm prompt** was
-then added (`elicit_chains`) so the 32B emits both hops of indirect effects; a
-follow-up A/B tests whether genuine multi-hop chains help. Honest read so far:
-relational *breadth* (shared drivers) is already captured by the base graph, so
-Graph-RAG adds little on top.
+**Definitive no-gain.** Both the shared-driver variant AND the chain-eliciting
+variant (where the 32B is prompted to emit both hops of indirect effects, so real
+OIL->AIRLINES->asset chains form) are flat-to-slightly-negative vs baseline. The
+relational structure the LLM already encodes in the base impact graph is
+sufficient for this task; making multi-hop contagion explicit adds no predictive
+signal. Contrast **RAG** (case-based retrieval), which *does* help robustly — so
+the useful relational prior is "what happened on similar past days", not deeper
+graph topology. Graph-RAG line closed.
 
 ### Operating points & deployment (`train/threshold.py`, `serving/ensemble.py`)
 AUROC is threshold-free; deployment needs an alert threshold. Walk-forward OOF
