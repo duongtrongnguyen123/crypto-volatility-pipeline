@@ -164,7 +164,7 @@ def extract_news_signals(items, recent_hours: int = 6, half_life_h: float = 3.0)
     from trr.select import _NEG, _POS
     if not items:
         return {"total": 0, "recent_count": 0, "neg": 0.0, "pos": 0.0,
-                "neg_ratio": 0.0, "stress": "Thấp", "top_tickers": [], "top_recent": []}
+                "neg_ratio": 0.0, "stress": "Low", "top_tickers": [], "top_recent": []}
     now = max(it.timestamp for it in items)
 
     def age_h(it):
@@ -188,11 +188,11 @@ def extract_news_signals(items, recent_hours: int = 6, half_life_h: float = 3.0)
         scored.append((n_neg * 1.5 + n_pos + w, it))     # salience favours recent+neg
     neg_ratio = neg / (neg + pos + 1e-9)
     if neg_ratio >= 0.5 and neg >= 3:
-        stress = "Cao"
+        stress = "High"
     elif neg_ratio >= 0.3:
-        stress = "Tăng"
+        stress = "Elevated"
     else:
-        stress = "Thấp"
+        stress = "Low"
     scored.sort(key=lambda x: -x[0])
     return {"total": len(items),
             "recent_count": sum(1 for it in items if age_h(it) <= recent_hours),
@@ -204,81 +204,77 @@ def extract_news_signals(items, recent_hours: int = 6, half_life_h: float = 3.0)
 
 def _template_summary(sig: dict) -> str:
     tt = ", ".join(t for t, _ in sig["top_tickers"][:3]) or "—"
-    return (f"{sig['total']} tin (gần đây {sig['recent_count']}); "
-            f"mức tin tiêu cực: {sig['stress']} (tỉ lệ neg {sig['neg_ratio']:.0%}); "
-            f"tâm điểm: {tt}.")
+    return (f"{sig['total']} headlines ({sig['recent_count']} recent); "
+            f"news-stress: {sig['stress']} (neg {sig['neg_ratio']:.0%}); "
+            f"focus: {tt}.")
 
 
-_SUM_MODEL_CACHE: dict = {}     # loaded summarizer model (once)
-_SUM_TEXT_CACHE: dict = {}      # news-signature -> LLM summary (skip re-gen on no new news)
-_WARM_STARTED: dict = {"v": False}
+import threading as _threading
+
+SUMMARY_PATH = "data/live/summary.json"   # daemon writes here; the web reads it
+_SUM_MODEL_CACHE: dict = {}     # loaded summarizer model (lives in the daemon process)
+_SUM_STATE: dict = {}           # last summary + signature (debounced regeneration)
+_SUM_LOAD_LOCK = _threading.Lock()
 
 
-def _warm_summarizer_async():
-    """Load the 7B once in the background so the UI never blocks on model load."""
-    if _WARM_STARTED["v"]:
-        return
-    _WARM_STARTED["v"] = True
-    import threading
-
-    def _load():
-        try:
-            _get_summarizer()
-        except Exception:  # noqa: BLE001
-            pass
-    threading.Thread(target=_load, daemon=True).start()
+def _jaccard(a, b) -> float:
+    a, b = set(a), set(b)
+    return len(a & b) / max(1, len(a | b))
 
 
 def _get_summarizer():
     """Local instruct LLM for live summaries — Qwen2.5-7B-Instruct-AWQ on the
-    2060 (the project's live model), cached once and reused across refreshes."""
+    2060 (the project's live model). Loaded ONCE in the long-running daemon
+    process and reused forever; the web never loads it (it reads the cache file).
+    """
     if "m" not in _SUM_MODEL_CACHE:
-        import os
+        with _SUM_LOAD_LOCK:
+            if "m" not in _SUM_MODEL_CACHE:        # re-check inside the lock
+                import os
 
-        from trr.llm import HFReasoningLLM
-        model = os.environ.get("SUMMARY_MODEL", "Qwen/Qwen2.5-7B-Instruct-AWQ")
-        _SUM_MODEL_CACHE["m"] = HFReasoningLLM(model_path=model, dtype="float16",
-                                               max_input_tokens=2048)
+                from trr.llm import HFReasoningLLM
+                model = os.environ.get("SUMMARY_MODEL", "Qwen/Qwen2.5-7B-Instruct-AWQ")
+                _SUM_MODEL_CACHE["m"] = HFReasoningLLM(
+                    model_path=model, dtype="float16", max_input_tokens=2048)
     return _SUM_MODEL_CACHE["m"]
 
 
 def summarize_live_news(items, use_llm: bool = True, recent_hours: int = 6):
-    """Rule-based extraction → LLM summary of the LATEST news.
+    """Rule-based extraction → LLM summary of the LATEST news (recency-weighted).
 
-    The small local LLM writes a 1–2 sentence Vietnamese summary from the
-    extracted facts + most-recent headlines (recency-focused). Result is cached
-    by the recent-headline set, so it re-generates only when new news arrives.
-    Falls back to the deterministic rule-based template if the LLM is
-    unavailable, so the panel always shows something.
+    BLOCKING (run inside the long-lived daemon, never in the web request path).
+    Debounced: re-generates only on material change (stress flip / recent-set
+    shift / >10 min stale); otherwise returns the cached summary. Falls back to
+    the deterministic rule-based template if the LLM is unavailable.
     """
     sig = extract_news_signals(items, recent_hours=recent_hours)
     if not items:
-        return {"signals": sig, "summary": "Chưa có tin trực tiếp.", "source": "none"}
+        return {"signals": sig, "summary": "No live news yet.", "source": "none"}
     template = _template_summary(sig)
     if not use_llm:
         return {"signals": sig, "summary": template, "source": "rule-based"}
-    key = tuple(sorted(it.title for it in sig["top_recent"]))
-    if key in _SUM_TEXT_CACHE:
-        return {"signals": sig, "summary": _SUM_TEXT_CACHE[key], "source": "LLM (7B)"}
-    # Non-blocking: if the 7B isn't loaded yet, warm it in the background and show
-    # the rule-based template now; the LLM summary appears on a later refresh.
-    if "m" not in _SUM_MODEL_CACHE:
-        _warm_summarizer_async()
-        return {"signals": sig, "summary": template, "source": "rule-based (LLM đang tải…)"}
+    cur_titles = {it.title for it in sig["top_recent"]}
+    if _SUM_STATE.get("summary"):
+        elapsed_min = (datetime.now(timezone.utc) - _SUM_STATE["ts"]).total_seconds() / 60.0
+        material = (sig["stress"] != _SUM_STATE["stress"]
+                    or _jaccard(cur_titles, _SUM_STATE["titles"]) < 0.6
+                    or elapsed_min > 10)
+        if not material:                          # no new news → reuse, no regen
+            return {"signals": sig, "summary": _SUM_STATE["summary"], "source": "LLM (7B, cached)"}
     try:
-        llm = _SUM_MODEL_CACHE["m"]
+        llm = _get_summarizer()
         heads = "\n".join(f"- {it.title}" for it in sig["top_recent"])
         prompt = (
-            "Bạn là trợ lý tài chính. Tóm tắt NGẮN GỌN (1–2 câu tiếng Việt) tình hình "
-            "tin tức thị trường HIỆN TẠI, ưu tiên các tin MỚI NHẤT bên dưới. "
-            f"Bối cảnh: {sig['total']} tin, mức tin tiêu cực {sig['stress']}, "
-            f"tâm điểm {', '.join(t for t, _ in sig['top_tickers'][:3])}.\n"
-            f"Tin mới nhất:\n{heads}\n\nTóm tắt (1–2 câu):")
-        out = llm.generate(prompt, max_new_tokens=120).strip()
+            "You are a financial news assistant. In 1–2 concise English sentences, "
+            "summarize the CURRENT market-news situation, prioritizing the MOST RECENT "
+            "headlines below. "
+            f"Context: {sig['total']} headlines, news-stress {sig['stress']}, "
+            f"focus {', '.join(t for t, _ in sig['top_tickers'][:3])}.\n"
+            f"Latest headlines:\n{heads}\n\nSummary:")
+        out = llm.generate(prompt, max_new_tokens=110).strip()
         if out:
-            _SUM_TEXT_CACHE[key] = out
-            if len(_SUM_TEXT_CACHE) > 64:        # bound the cache
-                _SUM_TEXT_CACHE.pop(next(iter(_SUM_TEXT_CACHE)))
+            _SUM_STATE.update(titles=cur_titles, stress=sig["stress"],
+                              ts=datetime.now(timezone.utc), summary=out)
         return {"signals": sig, "summary": out or template, "source": "LLM (7B)"}
     except Exception:  # noqa: BLE001
         return {"signals": sig, "summary": template, "source": "rule-based (fallback)"}
@@ -291,6 +287,51 @@ def live_news_summary(use_llm: bool = True):
     res = summarize_live_news(heads, use_llm=use_llm)
     res["n_headlines"] = len(heads)
     return res
+
+
+def write_live_summary(use_llm: bool = True, items=None) -> dict:
+    """Daemon hook: summarise the live feed and persist to SUMMARY_PATH so the web
+    reads it instantly (model stays loaded in the daemon; web never loads it).
+    Pass `items` (the daemon's already-fetched store) to avoid a second fetch."""
+    import json
+    import os
+
+    if items is None:
+        res = live_news_summary(use_llm=use_llm)
+        n_heads = res.get("n_headlines", 0)
+    else:
+        res = summarize_live_news(items, use_llm=use_llm)
+        n_heads = len(items)
+    sig = res["signals"]
+    out = {"summary": res["summary"], "source": res["source"],
+           "n_headlines": n_heads,
+           "stress": sig["stress"], "neg_ratio": sig["neg_ratio"],
+           "recent_count": sig["recent_count"], "total": sig["total"],
+           "top_tickers": sig["top_tickers"],
+           "top_recent": [{"ticker": (it.assets[0] if it.assets else "—"),
+                           "title": it.title} for it in sig["top_recent"]],
+           "asof": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    os.makedirs(os.path.dirname(SUMMARY_PATH), exist_ok=True)
+    with open(SUMMARY_PATH, "w") as f:
+        json.dump(out, f)
+    return out
+
+
+def read_live_summary(max_age_s: int = 3600):
+    """Web hook: read the daemon's cached summary (instant, no model load).
+    Returns None if missing; sets 'stale' if older than max_age_s."""
+    import json
+    import os
+    import time
+
+    if not os.path.exists(SUMMARY_PATH):
+        return None
+    try:
+        d = json.load(open(SUMMARY_PATH))
+        d["stale"] = (time.time() - os.path.getmtime(SUMMARY_PATH)) > max_age_s
+        return d
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _get_llm(use_local_7b: bool):

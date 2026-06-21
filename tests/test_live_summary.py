@@ -26,7 +26,7 @@ def _item(i, title, assets, age_min=0):
 
 def test_empty():
     sig = extract_news_signals([])
-    assert sig["total"] == 0 and sig["stress"] == "Thấp"
+    assert sig["total"] == 0 and sig["stress"] == "Low"
     assert summarize_live_news([])["source"] == "none"
 
 
@@ -36,7 +36,7 @@ def test_recency_weighting_dominates():
              _item(2, "Bank collapse triggers selloff and panic", ["TSLA"], age_min=2),
              _item(3, "NVDA plunges on recession crash fears", ["NVDA"], age_min=30)]
     sig = extract_news_signals(items)
-    assert sig["stress"] in ("Cao", "Tăng"), sig
+    assert sig["stress"] in ("High", "Elevated"), sig
     assert sig["neg_ratio"] > 0.5, sig
     # the top salient-recent headline is a fresh negative one (not the stale positive)
     assert any(w in sig["top_recent"][0].title.lower()
@@ -51,14 +51,14 @@ def test_calm_is_low():
     items = [_item(i, "Quiet session, stocks drift higher mildly", ["AAPL"], age_min=i * 10)
              for i in range(5)]
     sig = extract_news_signals(items)
-    assert sig["stress"] == "Thấp", sig
+    assert sig["stress"] == "Low", sig
 
 
 def test_summary_rule_based_string():
     items = [_item(1, "Markets tumble as crash fears mount", ["NVDA"], age_min=1)]
     r = summarize_live_news(items, use_llm=False)
     assert r["source"] == "rule-based"
-    assert "tin" in r["summary"] and "tiêu cực" in r["summary"]
+    assert "headlines" in r["summary"] and "news-stress" in r["summary"]
 
 
 if __name__ == "__main__":

@@ -93,22 +93,18 @@ def tick(store: list[dict], retain_min: int, backend: str, force: bool, rag: boo
     with open(PRICES_PATH, "w") as f:
         json.dump({"prices": prices, "portfolio_move": port_move,
                    "asof": datetime.now(timezone.utc).isoformat(timespec="seconds")}, f)
-    # 4. run model only when something changed (or forced)
+    # 4. summarize live news only when something changed (or forced). The 7B
+    #    stays loaded in this long-running process; the web just reads the cached
+    #    summary.json — so a web restart is instant and the model never reloads.
     ran = False
     if fresh or force:
-        # Display/store keeps the full feed; the PREDICTION stays company+macro
-        # (the trained distribution) — drop crypto/world before reasoning.
-        pred_rows = [r for r in store
-                     if not r["ticker"].startswith(("CRYPTO:", "WORLD:"))]
-        items = _to_newsitems(pred_rows)
-        if rag:  # single-step reasoning + analogues from the LABELED historical bank
-            sig = run_live(items, use_local_7b=(backend == "7b"), use_rag=True)
-        else:    # full multi-day pipeline (temporal decay across days)
-            sig = run_live_window(items, use_local_7b=(backend == "7b"))
-        sig["portfolio_move"] = port_move
-        sig["retained_news"] = len(store)
-        with open(SIGNAL_PATH, "w") as f:
-            json.dump(sig, f)
+        from webapp.live import write_live_summary
+        items = _to_newsitems(store)              # full feed (with timestamps)
+        out = write_live_summary(use_llm=(backend == "7b"), items=items)
+        out["portfolio_move"] = port_move
+        out["retained_news"] = len(store)
+        with open(SIGNAL_PATH, "w") as f:         # keep signal.json for back-compat
+            json.dump(out, f)
         ran = True
     return store, fresh, pruned, ran
 
