@@ -14,10 +14,11 @@
 > - Chỗ 「điền sau」 = kết quả đang chạy → **giữ placeholder rõ ràng** (ô nền vàng nhạt + chữ "đang chạy"), đừng bịa số.
 > - Đơn vị số theo chuẩn VN (dấu phẩy thập phân) như trong nội dung.
 >
-> ⏱️ LỘ TRÌNH ~10 PHÚT (12 slide lõi · 6 slide lướt/dự phòng)
-> - **Lõi (trình kỹ, ~45–60s/slide):** 1 (bìa, 20s) · 2 (vấn đề) · 3 (bài toán) · 5 (4 pha) · 6 (RAG) · 8 (4 chữ V) · 9 (lưu trữ) · 10 (Spark) · 11 (Kaggle) · 14 (kết quả) · 16 (trung thực) · 17 (kết luận).
-> - **Lướt nhanh (~15–20s, hoặc bỏ nếu thiếu giờ):** 4 (ý tưởng — gộp vào slide 5) · 7 (dữ liệu — gộp vào slide 8) · 12 (triển khai) · 13 (hiển thị≠dự đoán) · 15 (số 「điền sau」 — chỉ mở nếu đã có số) · 18 (Q&A).
-> - Tổng ước tính: 12 × ~48s + 6 × ~18s ≈ **~10 phút**. Nếu dư giờ, mở thêm slide lướt; nếu thiếu, bỏ 4/7/15.
+> ⏱️ LỘ TRÌNH ~10 PHÚT (chọn ~12 slide)
+> - **Lõi bắt buộc (~45s):** 1 (bìa, 20s) · 2 · 3 · 5 · 6 · 8 · 9 · 10 · 11 · 14 (kết quả) · 16 (trung thực) · 17 (kết luận).
+> - **Ưu tiên cao (nên có):** 12 (⭐ DEMO web ~40s) · 15 (đối chiếu — mở khi giám khảo soi kết quả).
+> - **Lướt/bỏ nếu thiếu giờ:** 4 (gộp vào 5) · 7 (gộp vào 8) · 13 · 18 (Q&A).
+> - 12 lõi × ~45s + demo ~40s ≈ **~10 phút**. Thiếu giờ → bỏ 4/7/13; dư giờ → thêm 13/18.
 
 ---
 
@@ -124,6 +125,7 @@
 - **Velocity:** luồng trực tiếp ~500 tin/ngày, cập nhật 60 giây, Spark Streaming.
 - **Variety:** tin công ty, vĩ mô, crypto, thế giới; giá; nhiều nguồn.
 - **Value:** advisory cảnh báo sụp đổ + web app triển khai thật.
+- *(Veracity — chữ V thứ 5, hay bị hỏi):* khử trùng lặp + lọc theo danh mục + **embargo 3 ngày** (đảm bảo nhân quả, không rò rỉ tương lai).
 
 **🎨 Hình ảnh — lưới 2×2 thẻ (4 ô V), mỗi ô 1 icon + số:**
 > Ô1 Volume: icon kho/đĩa 💾, "12 GB · 4,5 triệu bài". Ô2 Velocity: icon đồng hồ tốc độ ⏱️, "~500 tin/ngày · 60 s". Ô3 Variety: icon nhiều luồng 🔀, "Công ty · Vĩ mô · Crypto · Thế giới · Giá". Ô4 Value: icon khiên/gauge 🛡️, "Cảnh báo crash + Web app". Viền mỗi ô màu xanh lá, chữ V in đậm góc trên.
@@ -175,17 +177,19 @@
 
 ---
 
-### SLIDE 12 — Mô hình & Triển khai
+### SLIDE 12 — Triển khai & DEMO TRỰC TIẾP  ⭐ (slide demo)
 **② Nội dung**
-- **Qwen2.5-32B** (Kaggle RTX 6000 Pro, offline) — backtest quy mô lớn.
-- **Qwen2.5-7B-AWQ** (cục bộ RTX 2060 SUPER 8 GB) — suy luận trực tiếp.
-- **FastAPI** (`/predict`, `/predict-ensemble`, `/backtest`) + **Web app Streamlit** (giám sát trực tiếp, feed ~500 tin/ngày, biểu đồ tương tác).
-- **Daemon trực tiếp** mỗi 60 giây, lưu rolling 7 ngày.
+- **Web app Streamlit (live):** gauge xác suất crash + feed tin ~500/ngày cập nhật, biểu đồ tương tác.
+- **👉 DEMO:** mở trực tiếp tại link + **QR** (quét bằng điện thoại để xem cùng).
+- **Mô hình:** Qwen2.5-**32B** (Kaggle, offline, backtest) · Qwen2.5-**7B-AWQ** (cục bộ, live).
+- **FastAPI** (`/predict`, `/backtest`) + **daemon** 60 giây (rolling 7 ngày).
 
-**🎨 Hình ảnh — ẢNH CHỤP MÀN HÌNH web app (chèn ảnh thật):**
-> [CHÈN ẢNH MÀN HÌNH web app: gauge xác suất crash + feed tin tích lũy]. Nếu chưa có ảnh, vẽ mockup: khung trình duyệt, bên trái 1 gauge bán nguyệt kim chỉ % (màu chuyển xanh→đỏ), bên phải danh sách thẻ tin có icon 🏢/🌐, nhãn "LIVE" nhấp nháy đỏ góc trên.
+**🎨 Hình ảnh — ẢNH CHỤP web app + QR (CHÈN ẢNH THẬT):**
+> Bên trái: **[CHÈN ẢNH MÀN HÌNH web app]** — gauge bán nguyệt kim chỉ %, màu xanh→đỏ; bên phải là danh sách thẻ tin, nhãn "LIVE" nhấp nháy góc trên. (Chụp tại http://localhost:8501.)
+> Bên phải slide: **mã QR lớn** trỏ tới URL demo + chữ "Quét để xem trực tiếp".
+> URL demo là link tạm (đổi mỗi lần chạy) — tạo QR từ URL THỰC TẾ ngay trước khi trình bày.
 
-**🎤 Ghi chú:** "Heavy 32B = offline chất lượng cao; 7B cục bộ = triển khai trực tiếp."
+**🎤 Ghi chú (kịch bản demo ~40s):** Mở web → chỉ gauge crash + feed tin đang chạy → gõ 1 headline vào ô "Try it" → đồ thị tác động + xác suất hiện ra. Nhấn: "32B nặng = offline chất lượng cao; 7B = triển khai trực tiếp". *Nếu mạng yếu: dùng ảnh chụp thay live.*
 
 ---
 
@@ -202,31 +206,32 @@
 
 ---
 
-### SLIDE 14 — Kết quả (1): Số đã có
+### SLIDE 14 — Kết quả chính (rigorous, toàn corpus 8 năm)
 **② Nội dung**
-- COVID (2019-06…2020-06): **AUROC 0.785** → **+RAG 0.847**.
-- Rộng 2016–2020: **0.710**; RAG **+0.074 (p = 0.009)** — có ý nghĩa thống kê.
-- Baseline "khối lượng tin" ≈ **0.50** → tín hiệu đến từ **suy luận**, không phải đếm tin.
+- **Toàn corpus FNSPID 2016–2023 (78 sự kiện / 8 năm):** base 0.615 → **RAG 0.652**; lift **+0.037, p = 0.032** → *có ý nghĩa thống kê*.
+- **RAG có ý nghĩa trên CẢ HAI corpus:** analyst-news +0.074 (p=0.009) **và** FNSPID +0.037 (p=0.032).
+- **Best-case** (cửa sổ panic COVID, bộ analyst-news): lên tới **0.785 → +RAG 0.847**.
+- Baseline "khối lượng tin": **mạnh trên FNSPID (0.66)**, gần ngẫu nhiên trên analyst-news (~0.50) — đối chiếu ở slide 15.
 
-**🎨 Hình ảnh — BIỂU ĐỒ CỘT NHÓM (grouped bar) AUROC:**
-> Grouped bar chart. Trục Y = AUROC (0.4–0.9). Hai nhóm trên trục X: "COVID" và "Rộng 2016–2020". Mỗi nhóm 2 cột: "Base" (xám) và "+RAG" (xanh lá). Giá trị: COVID base 0.785 / +RAG 0.847; Rộng base 0.710 / +RAG (≈0.784, hoặc để 「điền sau」). Vẽ **đường ngang đứt nét tại 0.50** nhãn "Ngẫu nhiên". Ghi nhãn giá trị trên cột.
+**🎨 Hình ảnh — GROUPED BAR (2 nhóm):**
+> Trục Y = AUROC (0.4–0.9). Nhóm 1 "Toàn corpus 2016–2023" (base 0.615 / RAG 0.652, ghi nhãn "p=0.032 ✓"); Nhóm 2 "COVID best-case" (base 0.785 / +RAG 0.847). Mỗi nhóm 2 cột Base (xám) + RAG (xanh lá). Đường ngang đứt nét tại 0.50 "Ngẫu nhiên". Ghi giá trị trên cột.
 
-**🎤 Ghi chú:** RAG là "chiến thắng ổn định" xuyên các cửa sổ; baseline đếm tin ≈ ngẫu nhiên.
+**🎤 Ghi chú:** DẪN bằng số trung thực (toàn 8 năm, có ý nghĩa thống kê); COVID là cận-trên *best-case* một cú panic, không phải con số đại diện.
 
 ---
 
-### SLIDE 15 — Kết quả (2): Mở rộng Toàn bộ Corpus 2016–2023
-**② Nội dung**
-- So sánh trên **CÙNG cửa sổ** (corpus mới lọc-danh-mục vs số cũ):
-  - COVID: base **0.707** / RAG **0.763** (cũ bundled 0.785 / 0.847)
-  - Rộng 2016–2020: base **0.693** / RAG **0.681** (cũ bundled 0.710)
-  - Toàn bộ 2016–2023: base **0.615** / RAG **0.652** (news-volume 0.662)
-- Kết luận: lọc theo danh mục **hồi phục mạnh** (COVID từ 0.37 → 0.76) nhưng corpus lớn **không vượt** bộ bundled gốc → *nhiều dữ liệu ≠ tốt hơn*.
+### SLIDE 15 — Đối chiếu cùng cửa sổ & tính NHẤT QUÁN
+**② Nội dung** — bảng same-window FNSPID (base / RAG / p / news-vol):
+- COVID: 0.707 / 0.763 / p=0.082 / 0.656  *(analyst-news cũ: 0.785 / 0.847)*
+- Rộng 2016–2020: 0.693 / 0.681 / p=0.66 *(phẳng)* / 0.677
+- **Toàn bộ 2016–2023: 0.615 / 0.652 / p=0.032 ✓ / 0.662**
+- **Đối chiếu 1 — news-volume phụ thuộc corpus:** gần ngẫu nhiên (~0.50) trên analyst-news, nhưng **mạnh (0.66) trên FNSPID** vì SỐ tin/ngày phản ánh mức chú ý thị trường → *vì thế ta test cả hai nguồn*.
+- **Đối chiếu 2 — RAG giúp nơi có tiền lệ lịch sử sạch:** có ý nghĩa trên analyst-news (+0.074, p=0.009) **và** toàn FNSPID (+0.037, p=0.032); chỉ *phẳng* ở lát hẹp 2016–2020 (small-N) — đúng luận điểm.
 
-**🎨 Hình ảnh — GROUPED BAR CHART (3 nhóm × 2 cột):**
-> Grouped bar, trục Y = AUROC (0.4–0.9). 3 nhóm trục X: "COVID", "2016–2020", "Toàn bộ 2016–2023". Mỗi nhóm 2 cột: Base (xám) và RAG (xanh lá). Giá trị: COVID 0.707/0.763; 2016–2020 0.693/0.681; Toàn bộ 0.615/0.652. Vẽ đường ngang đứt nét tại **0.50** (ngẫu nhiên) và một dấu ★ nhỏ ghi "cũ bundled COVID 0.847" để so sánh. Ghi nhãn giá trị trên mỗi cột.
+**🎨 Hình ảnh — BẢNG đối chiếu (3 hàng × 4 cột):**
+> Cột: Cửa sổ · Base · RAG · p-value · News-vol. 3 hàng (COVID / 2016–2020 / Toàn bộ). Tô **xanh lá** ô p<0.05 (Toàn bộ p=0.032), **xám** ô p>0.05. Dòng "Toàn bộ" in đậm. Chú thích nhỏ: "RAG thắng có ý nghĩa trên cả 2 corpus; news-vol mạnh-yếu tùy corpus".
 
-**🎤 Ghi chú:** Nhấn 2 ý trung thực: (1) đã sửa được lỗi chọn lọc (0.37→0.76); (2) corpus lớn không lập kỷ lục — giá trị là trình diễn quy mô Big Data + xác nhận bản sửa.
+**🎤 Ghi chú:** Hai dòng đối chiếu BIẾN "mâu thuẫn 14↔15" thành luận điểm: baseline & RAG phụ thuộc corpus/cửa sổ — đó CHÍNH là lý do test nhiều cấu hình. (Nếu bị hỏi "sao baseline nhảy 0.50→0.66?" → corpus khác nhau.)
 
 ---
 
