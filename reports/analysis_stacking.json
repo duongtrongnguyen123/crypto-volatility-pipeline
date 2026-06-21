@@ -1,0 +1,28 @@
+{
+  "n_days": 712,
+  "n_crash": 76,
+  "auroc_stack": 0.4044397331171666,
+  "auroc_trr": 0.5940949055309597,
+  "brier_raw": 0.19856363868405907,
+  "brier_isotonic": 0.048197490478143805,
+  "conformal": {
+    "alpha": 0.2,
+    "threshold": 0.529481379290379,
+    "alarm_rate": 0.1503267973856209,
+    "crash_recall_at_budget": 0.2727272727272727
+  },
+  "features": [
+    "trr",
+    "n_news",
+    "n_edges",
+    "pa_BTC",
+    "pa_ETH",
+    "pa_SOL",
+    "pa_BNB",
+    "pa_AVAX",
+    "pa_DOGE",
+    "fng_fear",
+    "price_mom5",
+    "vol20"
+  ]
+}
