@@ -132,7 +132,7 @@
 
 ---
 
-### SLIDE 9 — Kiến trúc Lưu trữ: "Lưu khổng lồ, phục vụ tí hon"
+### SLIDE 9 — Kiến trúc Lưu trữ: "Lưu khổng lồ, phục vụ tối thiểu"
 **② Nội dung**
 - **Kho gốc:** corpus 12 GB trên đĩa → **Chỉ mục truy hồi:** SQLite theo ngày 1,9 GB (tra cứu 1 ngày ~44 ms) → **Phục vụ LLM:** phần RAG đã chọn ~2 MB.
 - Kỹ thuật: stream-and-filter (không lưu 23 GB thô), đọc theo từng khối (giới hạn RAM), chỉ đọc cột cần, chỉ mục phân vùng, chọn lọc RAG.

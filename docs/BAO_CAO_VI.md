@@ -86,7 +86,7 @@ Hai vai trò, cả hai đều đưa thêm ngữ cảnh vào LLM:
 
 ## 7. Kiến trúc Big Data (điểm nhấn môn học)
 
-### 7.1 Lưu trữ phân tầng — "lưu khổng lồ, phục vụ tí hon"
+### 7.1 Lưu trữ phân tầng — "lưu khổng lồ, phục vụ tối thiểu"
 | Tầng | Nội dung | Kích thước |
 |---|---|---|
 | Kho gốc | corpus 2016–2023 | 12 GB (đĩa cục bộ) |
