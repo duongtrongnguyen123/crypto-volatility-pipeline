@@ -68,3 +68,6 @@ kaggle/p_*/
 kaggle/ds_*/
 data/live/
 data/ohlcv/
+kaggle/daily_stage/
+kaggle/daily_push/
+kaggle/out_daily/
