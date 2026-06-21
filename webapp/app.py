@@ -124,40 +124,57 @@ st.markdown(
     f"Showing run **{run['label']}** (`out_{run['slug']}`)."
 )
 
-# ---- LIVE monitor (current prices + current news via yfinance, needs internet) ----
+# ---- LIVE monitor: auto-fetches + auto-refreshes (yfinance, needs internet) ----
 st.header("🔴 Live market monitor")
-st.caption("Current prices + current headlines (yfinance) → TRR live crash signal. "
-           "Needs internet. NOTE: this is a *runnability/deployment* demo — live "
-           "news is sparse, noisy and unlabeled, so the rigorous AUROC numbers come "
-           "from the batch evaluation on curated, labeled historical news, NOT from "
-           "this live feed.")
-_use7b = st.checkbox("Use local Qwen2.5-7B-AWQ on the 2060 (real LLM, ~1–3 min) "
-                     "instead of the instant heuristic", value=False)
-if st.button("↻ Fetch live market data"):
-    with st.spinner("Pulling live prices + news and running TRR…"):
+st.caption("Auto-pulls current prices + headlines (yfinance) and runs TRR live, "
+           "refreshing on an interval. NOTE: a *runnability/deployment* demo — live "
+           "news is sparse/noisy/unlabeled, so the rigorous AUROC numbers come from "
+           "the batch evaluation on curated, labeled historical news, not this feed.")
+
+_lc1, _lc2 = st.columns([1, 2])
+_interval = _lc1.selectbox("Auto-refresh", [30, 60, 120, 300], index=1,
+                           format_func=lambda s: f"every {s}s")
+_lc2.caption("The panel below fetches live data automatically and updates itself. "
+             "Use the local 7B button at the bottom for a real-LLM (slower) read.")
+
+
+@st.fragment(run_every=_interval)
+def _live_panel():
+    from webapp import live as _live
+    try:
+        snap = _live.live_snapshot(use_local_7b=False)   # instant heuristic for auto-loop
+        sig = snap["signal"]
+        prob = sig["crash_prob"]
+        st.metric("🔴 LIVE crash probability", f"{prob:.0%}",
+                  delta=f"{snap['portfolio_move']:+.2%} portfolio (1d)",
+                  delta_color="inverse")
+        st.progress(min(prob, 1.0))
+        st.caption(f"updated {sig['asof']} · backend {sig.get('backend','?')} · "
+                   f"{sig['n_news']} headlines · {sig['n_edges']} impact edges · "
+                   f"{sig['rationale'][:110]}")
+        pc = st.columns(6)
+        for i, (tk, row) in enumerate(snap["prices"].items()):
+            pc[i % 6].metric(tk, row["price"],
+                             f"{row['ret_1d']:+.2%}" if row["ret_1d"] is not None else "—")
+        with st.expander(f"Live headlines ({len(snap['headlines'])})"):
+            for h in snap["headlines"]:
+                st.write(f"**[{h['ticker']}]** {h['title']}")
+    except Exception as exc:  # noqa: BLE001
+        st.warning(f"Live fetch unavailable (need internet / yfinance): {exc}")
+
+
+_live_panel()
+
+if st.button("↻ Run once with local Qwen-7B (real LLM on the 2060, ~1–3 min)"):
+    with st.spinner("Loading 7B-AWQ + reasoning over live news…"):
         try:
             from webapp import live as _live
-            snap = _live.live_snapshot(use_local_7b=_use7b)
-            sig = snap["signal"]
-            st.caption(f"backend: {sig.get('backend','?')}")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Live crash probability", f"{sig['crash_prob']:.0%}")
-            c2.metric("Portfolio move (1d)", f"{snap['portfolio_move']:+.2%}")
-            c3.metric("Live headlines", sig["n_news"])
-            st.caption(f"as of {sig['asof']} · {sig['n_edges']} impact edges · "
-                       f"rationale: {sig['rationale'][:120]}")
-            pc = st.columns(6)
-            for i, (tk, row) in enumerate(snap["prices"].items()):
-                pc[i % 6].metric(tk, row["price"],
-                                 f"{row['ret_1d']:+.2%}" if row["ret_1d"] is not None else "—")
-            with st.expander(f"Live headlines ({len(snap['headlines'])})"):
-                for h in snap["headlines"]:
-                    st.write(f"**[{h['ticker']}]** {h['title']}")
+            sig = _live.run_live(_live.fetch_live_headlines(), use_local_7b=True)
+            st.success(f"7B live crash_prob {sig['crash_prob']:.0%} · "
+                       f"{sig['n_edges']} edges · {sig['backend']}")
+            st.caption(sig["rationale"][:200])
         except Exception as exc:  # noqa: BLE001
-            st.warning(f"Live fetch unavailable (need internet / yfinance): {exc}")
-else:
-    st.info("Click **Fetch live market data** to pull current prices + news and "
-            "run TRR live. (The sections below are the offline research dashboard.)")
+            st.warning(f"7B run failed: {exc}")
 st.markdown("---")
 
 latest_prob = summ["latest_prob"] or 0.0
