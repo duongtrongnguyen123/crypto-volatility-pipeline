@@ -128,8 +128,10 @@ with tab_live:
 
     st.markdown("---")
     st.subheader("📡 Live market monitor")
-    st.caption("Auto-refreshes from yfinance + local model. Deployment demo — live "
-               "news is unlabeled, so rigorous AUROC is in the Research tab.")
+    st.caption("Auto-refreshes from yfinance. This gauge is the **instant heuristic** "
+               "(MockLLM) for a fast 'now' read; the **Daily advisory** above is the "
+               "considered **32B/7B** daily call — they use different models/windows, "
+               "so expect them to differ. Deployment demo (live news unlabeled).")
     _interval = st.selectbox("Auto-refresh", [30, 60, 120, 300], index=1,
                              format_func=lambda s: f"every {s}s")
 
@@ -141,7 +143,7 @@ with tab_live:
             sig = snap["signal"]
             c1, c2, c3 = st.columns([1, 1, 1])
             with c1:
-                st.plotly_chart(gauge(sig["crash_prob"], "Live crash prob"),
+                st.plotly_chart(gauge(sig["crash_prob"], "Live (heuristic, instant)"),
                                 width="stretch")
             c2.metric("Portfolio move (1d)", f"{snap['portfolio_move']:+.2%}")
             c2.metric("Live headlines", sig["n_news"])
@@ -161,27 +163,52 @@ with tab_live:
 
     st.markdown("#### 📰 Live news feed")
     st.caption("Company + **macro** headlines (Fed, rates, VIX, geopolitics), "
-               "newest first — auto-updates.")
+               "newest first, sentiment-tinted, with 🆕 badges. **Display only** — "
+               "high-frequency news shown for context; the crash *prediction* stays "
+               "the daily 3-day advisory above (we don't predict at this cadence).")
+    _NEG = ("crash slump plunge fall drop fear hack ban lawsuit selloff sell-off "
+            "tumble sink slide warn cut loss recession halt panic downgrade").split()
+    _POS = ("surge soar rally gain jump rise beat upgrade record high boom approve "
+            "win growth profit strong buy bullish").split()
+    fc1, fc2 = st.columns([1, 1])
+    _feed_rate = fc1.selectbox("Feed refresh", [10, 15, 30, 60], index=1,
+                               format_func=lambda s: f"every {s}s", key="feedrate")
+    _filter = fc2.selectbox("Filter", ["All", "🌐 Macro only", "🏢 Companies only"],
+                            key="feedfilter")
 
-    @st.fragment(run_every=_interval)
+    @st.fragment(run_every=_feed_rate)
     def _news_feed():
         from webapp import live as _live
         try:
-            heads = _live.fetch_live_headlines(include_macro=True, max_per=6)
-            heads = sorted(heads, key=lambda h: h.timestamp, reverse=True)[:25]
+            heads = _live.fetch_live_headlines(include_macro=True, max_per=12)
+            heads = sorted(heads, key=lambda h: h.timestamp, reverse=True)
+            if _filter.startswith("🌐"):
+                heads = [h for h in heads if h.assets[0].startswith("MACRO")]
+            elif _filter.startswith("🏢"):
+                heads = [h for h in heads if not h.assets[0].startswith("MACRO")]
+            heads = heads[:50]
+            prev = st.session_state.get("feed_seen", set())
+            now_ids = {h.id + h.title for h in heads}
+            st.caption(f"{len(heads)} headlines · 🆕 {len(now_ids - prev)} new this refresh")
             for h in heads:
-                tag = h.assets[0]
-                macro = tag.startswith("MACRO")
-                icon = "🌐" if macro else "🏢"
-                colour = "#b45309" if macro else "#334155"
+                tag = h.assets[0]; macro = tag.startswith("MACRO")
+                low = h.title.lower()
+                senti = ("#dc2626" if any(w in low for w in _NEG) else
+                         "#16a34a" if any(w in low for w in _POS) else "#334155")
+                isnew = (h.id + h.title) not in prev
+                badge = ("<span style='background:#dc2626;color:#fff;border-radius:4px;"
+                         "padding:0 5px;font-size:0.66rem'>🆕</span> " if isnew and prev else "")
                 t = h.timestamp.strftime("%m-%d %H:%M")
                 st.markdown(
                     f"<div style='padding:3px 0;border-bottom:1px solid #eef'>"
-                    f"<span style='color:#94a3b8;font-size:0.78rem'>{t}</span> "
+                    f"<span style='color:#94a3b8;font-size:0.76rem'>{t}</span> "
                     f"<span style='background:{'#fef3c7' if macro else '#eef2ff'};"
-                    f"color:{colour};border-radius:6px;padding:1px 7px;"
-                    f"font-size:0.72rem;font-weight:600'>{icon} {tag}</span> "
-                    f"{h.title}</div>", unsafe_allow_html=True)
+                    f"color:{'#b45309' if macro else '#3730a3'};border-radius:6px;"
+                    f"padding:1px 7px;font-size:0.7rem;font-weight:600'>"
+                    f"{'🌐' if macro else '🏢'} {tag}</span> {badge}"
+                    f"<span style='color:{senti}'>{h.title}</span></div>",
+                    unsafe_allow_html=True)
+            st.session_state["feed_seen"] = now_ids
         except Exception as exc:  # noqa: BLE001
             st.caption(f"news feed unavailable: {exc}")
 
