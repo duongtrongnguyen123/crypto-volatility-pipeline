@@ -16,9 +16,12 @@ MACRO = {"^GSPC": "MKT", "^IXIC": "MKT", "^VIX": "VIX", "^TNX": "RATES"}
 CRYPTO = {"BTC-USD": "BTC", "ETH-USD": "ETH"}  # crypto market news
 # Expanded universe for the DISPLAY feed (more live volume); prediction still uses
 # the core 6 (TICKERS). Fetched concurrently so latency stays low.
-FEED_TICKERS = ["AAPL", "AMZN", "GOOGL", "NVDA", "TSLA", "NFLX", "META", "MSFT",
-                "AMD", "INTC", "JPM", "BAC", "WMT", "DIS", "BA", "XOM", "KO",
-                "PFE", "NKE", "QCOM", "AVGO", "COST", "ADBE", "GS"]
+FEED_TICKERS = [
+    "AAPL", "AMZN", "GOOGL", "NVDA", "TSLA", "NFLX", "META", "MSFT", "AMD", "INTC",
+    "JPM", "BAC", "WFC", "MS", "C", "GS", "WMT", "DIS", "BA", "XOM", "CVX", "KO",
+    "PEP", "PFE", "MRK", "LLY", "ABBV", "UNH", "NKE", "QCOM", "AVGO", "TXN", "MU",
+    "COST", "ADBE", "CRM", "ORCL", "CSCO", "IBM", "T", "VZ", "PYPL", "V", "MA",
+    "HD", "LOW", "PG", "CAT", "GE", "UBER"]  # ~50 large-caps -> ~500 headlines/day
 # Multiple RSS topic queries (world/macro/markets/crypto) for breadth.
 _RSS_QUERIES = {
     "world politics OR geopolitics OR election OR war OR sanctions": "WORLD",
