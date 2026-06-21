@@ -1,0 +1,21 @@
+{
+  "crash": {
+    "summary": {
+      "target": "crash",
+      "n_days": 144,
+      "n_pos_days": 13,
+      "base_rate": 0.09027777777777778,
+      "date_start": "2018-07-01",
+      "date_end": "2018-12-31"
+    },
+    "metrics": {
+      "TRR": {
+        "auroc": 0.6447445684086905,
+        "pr_auc": 0.12457676935525036
+      },
+      "news_volume": {
+        "auroc": 0.6884908984145626
+      }
+    }
+  }
+}

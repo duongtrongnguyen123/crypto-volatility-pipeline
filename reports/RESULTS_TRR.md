@@ -383,6 +383,25 @@ Findings:
   filtered to 6 tickers) extends to 2023; crypto news ends 2023-12. Recent years
   need a live news API (Finnhub/GDELT), not a static corpus.
 
+### RAG helps BEYOND COVID — the robust positive result (parallel batch)
+Earlier RAG was only tested on the COVID window (+0.06) and crypto (+0.01). A
+10-kernel parallel batch (one 32B run per 6-month shard, accounts 9-13 + 18-22)
+tested RAG on the broad multi-year stock window AND the 2022 bear market, vs the
+same-shard baseline:
+
+| Window | baseline | + case-based RAG | Δ |
+|---|---|---|---|
+| Stock COVID (2019-20) | 0.785 | 0.847 | +0.062 |
+| Stock broad 2018-2020 (s5-s9 pooled) | 0.657 | **0.731** | **+0.074** |
+| FNSPID bear 2021-2023 (f1-f5 pooled) | 0.550 | **0.615** | **+0.065** |
+| Crypto 2022-23 | 0.530 | 0.542 | +0.012 |
+
+**RAG robustly improves STOCK crash detection by +0.06 to +0.07 AUROC across
+COVID, broad multi-year, and bear-market regimes** — it is NOT a COVID artifact.
+The crypto +0.01 is the outlier (heterogeneous one-off shocks have few clean
+historical analogues to retrieve). Case-based retrieval of similar past days +
+their realized outcomes is the single most reliable enhancement found.
+
 ### Does TRAINING help? (meta-learner, `train/`)
 Out-of-time / cross-source (train 2016-2020 analyst news -> test 2021-2023 FNSPID):
 
