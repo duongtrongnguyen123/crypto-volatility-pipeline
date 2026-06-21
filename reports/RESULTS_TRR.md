@@ -402,6 +402,13 @@ The crypto +0.01 is the outlier (heterogeneous one-off shocks have few clean
 historical analogues to retrieve). Case-based retrieval of similar past days +
 their realized outcomes is the single most reliable enhancement found.
 
+**Significance (`train/significance.py`, paired bootstrap, 2000 resamples):** the
+gain is statistically significant (95% CI excludes 0) on the two larger-event
+windows — broad +0.074 CI [+0.014,+0.136] (p=0.009) and bear +0.065 CI
+[+0.016,+0.115] (p=0.004) — and only *borderline* on COVID (+0.063 CI
+[-0.012,+0.128], 14 events). So RAG's benefit is real where there are enough
+crash events to measure it; the small-sample COVID window can't confirm it alone.
+
 ### Does TRAINING help? (meta-learner, `train/`)
 Out-of-time / cross-source (train 2016-2020 analyst news -> test 2021-2023 FNSPID):
 

@@ -1,0 +1,32 @@
+[
+  {
+    "window": "stock_COVID_2019_20",
+    "n_days": 343,
+    "crashes": 14,
+    "delta_auroc": 0.06263569257490231,
+    "ci95_lo": -0.011574720979671424,
+    "ci95_hi": 0.1284304960683984,
+    "boot_p_delta_le_0": 0.0465,
+    "significant": false
+  },
+  {
+    "window": "stock_broad_2018_20",
+    "n_days": 761,
+    "crashes": 31,
+    "delta_auroc": 0.07384003535130368,
+    "ci95_lo": 0.014347040663671757,
+    "ci95_hi": 0.13605294011544022,
+    "boot_p_delta_le_0": 0.009,
+    "significant": true
+  },
+  {
+    "window": "FNSPID_bear_2021_23",
+    "n_days": 836,
+    "crashes": 41,
+    "delta_auroc": 0.06477987421383646,
+    "ci95_lo": 0.015684463986599676,
+    "ci95_hi": 0.11512354961673847,
+    "boot_p_delta_le_0": 0.004,
+    "significant": true
+  }
+]
