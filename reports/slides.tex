@@ -514,6 +514,18 @@
 \begin{frame}{LSTM Volatility Model — Results}
   \begin{columns}[t]
     \column{0.5\textwidth}
+    \textbf{Real LSTM Evaluation Data}
+    \begin{figure}
+      \centering
+      \includegraphics[width=\linewidth]{figures/fig17_pred_vs_actual.png}
+      \caption{LSTM predictions vs actual 5-min volatility (test set)}
+    \end{figure}
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.8\linewidth]{figures/fig18_scatter.png}
+      \caption{Predicted vs actual scatter (R² = 0.517)}
+    \end{figure}
+    \column{0.5\textwidth}
     \textbf{Test Set Performance}
     \begin{table}
       \centering
@@ -530,7 +542,6 @@
         \bottomrule
       \end{tabular}
     \end{table}
-    \column{0.5\textwidth}
     \textbf{Observations}
     \begin{itemize}
       \item LSTM matches EWMA — high volatility autocorrelation
@@ -539,7 +550,6 @@
       \item EWMA still strong baseline (volatility is persistent)
       \item \textbf{Real edge:} combined TRR + LSTM for crash + volatility
     \end{itemize}
-    \bigskip
     \textbf{Training details:}
     \begin{itemize}
       \item 441,465 sequences (24 steps $\times$ 5-min)
@@ -557,7 +567,8 @@
 \begin{frame}{Economic Backtest — TRR Strategy vs Buy \& Hold}
   \begin{figure}
     \centering
-    \includegraphics[width=0.85\linewidth]{figures/fig5_equity_curves.png}
+    \includegraphics[width=0.85\linewidth]{figures/fig16_backtest_equity.png}
+    \caption{Real LSTM backtest: equity curve from simulated trading}
   \end{figure}
   
   \textbf{Strategy:} De-risk (move to stablecoin) when TRR crash probability $\geq$ threshold.
