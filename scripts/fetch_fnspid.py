@@ -11,12 +11,13 @@ import sys
 
 import pandas as pd
 
-TICKERS = {"AAPL", "AMZN", "GOOGL", "NVDA", "TSLA", "NFLX"}
-MIN_YEAR = 2016
-OUT = "data/fnspid/stocknews.csv"
+TICKERS = set(os.environ.get(
+    "FNSPID_TICKERS", "AAPL,AMZN,GOOGL,NVDA,TSLA,NFLX").split(","))
+MIN_YEAR = int(os.environ.get("FNSPID_MIN_YEAR", "2016"))
+OUT = os.environ.get("FNSPID_OUT", "data/fnspid/stocknews.csv")
 
 import os
-os.makedirs("data/fnspid", exist_ok=True)
+os.makedirs(os.path.dirname(OUT) or ".", exist_ok=True)
 
 kept = 0
 chunks_seen = 0
