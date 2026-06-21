@@ -56,7 +56,7 @@ def test_calm_is_low():
 
 def test_summary_rule_based_string():
     items = [_item(1, "Markets tumble as crash fears mount", ["NVDA"], age_min=1)]
-    r = summarize_live_news(items, use_local_7b=False)
+    r = summarize_live_news(items, use_llm=False)
     assert r["source"] == "rule-based"
     assert "tin" in r["summary"] and "tiêu cực" in r["summary"]
 

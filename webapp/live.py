@@ -209,39 +209,86 @@ def _template_summary(sig: dict) -> str:
             f"tâm điểm: {tt}.")
 
 
-def summarize_live_news(items, use_local_7b: bool = False, recent_hours: int = 6):
-    """Extract rule-based signals, then summarise. With the local 7B it writes a
-    1–2 sentence prose summary from the EXTRACTED facts + most-recent headlines
-    (recency-focused); otherwise returns the deterministic rule-based template.
+_SUM_MODEL_CACHE: dict = {}     # loaded summarizer model (once)
+_SUM_TEXT_CACHE: dict = {}      # news-signature -> LLM summary (skip re-gen on no new news)
+_WARM_STARTED: dict = {"v": False}
+
+
+def _warm_summarizer_async():
+    """Load the 7B once in the background so the UI never blocks on model load."""
+    if _WARM_STARTED["v"]:
+        return
+    _WARM_STARTED["v"] = True
+    import threading
+
+    def _load():
+        try:
+            _get_summarizer()
+        except Exception:  # noqa: BLE001
+            pass
+    threading.Thread(target=_load, daemon=True).start()
+
+
+def _get_summarizer():
+    """Local instruct LLM for live summaries — Qwen2.5-7B-Instruct-AWQ on the
+    2060 (the project's live model), cached once and reused across refreshes."""
+    if "m" not in _SUM_MODEL_CACHE:
+        import os
+
+        from trr.llm import HFReasoningLLM
+        model = os.environ.get("SUMMARY_MODEL", "Qwen/Qwen2.5-7B-Instruct-AWQ")
+        _SUM_MODEL_CACHE["m"] = HFReasoningLLM(model_path=model, dtype="float16",
+                                               max_input_tokens=2048)
+    return _SUM_MODEL_CACHE["m"]
+
+
+def summarize_live_news(items, use_llm: bool = True, recent_hours: int = 6):
+    """Rule-based extraction → LLM summary of the LATEST news.
+
+    The small local LLM writes a 1–2 sentence Vietnamese summary from the
+    extracted facts + most-recent headlines (recency-focused). Result is cached
+    by the recent-headline set, so it re-generates only when new news arrives.
+    Falls back to the deterministic rule-based template if the LLM is
+    unavailable, so the panel always shows something.
     """
     sig = extract_news_signals(items, recent_hours=recent_hours)
     if not items:
         return {"signals": sig, "summary": "Chưa có tin trực tiếp.", "source": "none"}
     template = _template_summary(sig)
-    if not use_local_7b:
+    if not use_llm:
         return {"signals": sig, "summary": template, "source": "rule-based"}
+    key = tuple(sorted(it.title for it in sig["top_recent"]))
+    if key in _SUM_TEXT_CACHE:
+        return {"signals": sig, "summary": _SUM_TEXT_CACHE[key], "source": "LLM (7B)"}
+    # Non-blocking: if the 7B isn't loaded yet, warm it in the background and show
+    # the rule-based template now; the LLM summary appears on a later refresh.
+    if "m" not in _SUM_MODEL_CACHE:
+        _warm_summarizer_async()
+        return {"signals": sig, "summary": template, "source": "rule-based (LLM đang tải…)"}
     try:
-        llm, real = _get_llm(True)
-        if not real:
-            return {"signals": sig, "summary": template, "source": "rule-based"}
+        llm = _SUM_MODEL_CACHE["m"]
         heads = "\n".join(f"- {it.title}" for it in sig["top_recent"])
         prompt = (
-            "Tóm tắt NGẮN GỌN (1–2 câu tiếng Việt) tình hình tin tức tài chính hiện tại, "
-            "ƯU TIÊN các tin mới nhất. "
-            f"Dữ kiện: {sig['total']} tin, mức tiêu cực {sig['stress']}, "
+            "Bạn là trợ lý tài chính. Tóm tắt NGẮN GỌN (1–2 câu tiếng Việt) tình hình "
+            "tin tức thị trường HIỆN TẠI, ưu tiên các tin MỚI NHẤT bên dưới. "
+            f"Bối cảnh: {sig['total']} tin, mức tin tiêu cực {sig['stress']}, "
             f"tâm điểm {', '.join(t for t, _ in sig['top_tickers'][:3])}.\n"
-            f"Tin gần đây nhất:\n{heads}\nTóm tắt:")
+            f"Tin mới nhất:\n{heads}\n\nTóm tắt (1–2 câu):")
         out = llm.generate(prompt, max_new_tokens=120).strip()
-        return {"signals": sig, "summary": out or template, "source": "7B"}
+        if out:
+            _SUM_TEXT_CACHE[key] = out
+            if len(_SUM_TEXT_CACHE) > 64:        # bound the cache
+                _SUM_TEXT_CACHE.pop(next(iter(_SUM_TEXT_CACHE)))
+        return {"signals": sig, "summary": out or template, "source": "LLM (7B)"}
     except Exception:  # noqa: BLE001
-        return {"signals": sig, "summary": template, "source": "rule-based"}
+        return {"signals": sig, "summary": template, "source": "rule-based (fallback)"}
 
 
-def live_news_summary(use_local_7b: bool = False):
-    """Fetch the current display feed (with timestamps) and summarise it."""
+def live_news_summary(use_llm: bool = True):
+    """Fetch the current display feed (with timestamps) and summarise the latest."""
     heads = fetch_live_headlines(FEED_TICKERS, max_per=8, include_macro=True,
                                  include_crypto=True, include_world=True)
-    res = summarize_live_news(heads, use_local_7b=use_local_7b)
+    res = summarize_live_news(heads, use_llm=use_llm)
     res["n_headlines"] = len(heads)
     return res
 
