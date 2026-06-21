@@ -60,7 +60,7 @@ market efficiency, while crash risk carries a real signal from news.
 | Stock broad 2016–2020 | **0.710** |
 | RAG lift (large-N) | **+0.074 (p = 0.009)** |
 | news-volume baseline | ≈ 0.50 (signal comes from reasoning, not headline counts) |
-| Full corpus 2016–2023 (portfolio-filtered) | *(running — see report)* |
+| Full corpus 2016–2023 (portfolio-filtered) | base **0.615** / RAG **0.652** (news-vol 0.662) |
 
 **Honest notes:** small-N is the real ceiling (14–82 crash days, ~4% base rate);
 direction/raw price ≈ chance (weak-form EMH); naively scaling to an *all-ticker*

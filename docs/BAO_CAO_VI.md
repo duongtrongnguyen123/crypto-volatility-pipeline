@@ -12,7 +12,7 @@
 
 Trọng tâm Big Data: xử lý nguồn tin **23 GB / 15,7 triệu bài** (FNSPID) bằng kỹ thuật **stream-process, lập chỉ mục phân vùng, và chọn lọc bằng RAG**, kết hợp **tính toán phân tán** (Spark cho ETL, 20 tài khoản GPU Kaggle cho suy luận LLM).
 
-**Kết quả chính (đã có):** Cửa sổ khủng hoảng COVID đạt **AUROC 0.785** (có RAG **0.847**); giai đoạn rộng 2016–2020 đạt **0.710**. RAG là cải thiện ổn định và có ý nghĩa thống kê (+0.074, p=0.009 ở quy mô lớn). Kết quả toàn corpus 2016–2023: 「điền sau」.
+**Kết quả chính:** Cửa sổ khủng hoảng COVID đạt **AUROC 0.785** (có RAG **0.847**); giai đoạn rộng 2016–2020 đạt **0.710**. RAG là cải thiện ổn định và có ý nghĩa thống kê (+0.074, p=0.009 ở quy mô lớn). Mở rộng sang corpus toàn bộ 2016–2023 (lọc theo danh mục): base **0.615** / RAG **0.652** — hồi phục mạnh sau khi sửa lỗi chọn lọc, nhưng *không vượt* bộ tin bundled gốc (chi tiết §9.2).
 
 ---
 
@@ -123,12 +123,20 @@ Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo
 | RAG (quy mô lớn) | **+0.074 (p=0.009)** | có ý nghĩa thống kê |
 | Baseline "khối lượng tin" | ~0.50 | ≈ ngẫu nhiên → tín hiệu đến từ suy luận, không phải đếm tin |
 
-### 9.2 Kết quả toàn corpus 2016–2023 (lọc theo danh mục) — 「điền sau」
-| Cửa sổ | Base AUROC | RAG AUROC | So với cũ |
-|---|---|---|---|
-| COVID | 「điền sau」 | 「điền sau」 | cũ: 0.785 / 0.847 |
-| Rộng 2016–2020 | 「điền sau」 | 「điền sau」 | cũ: 0.710 |
-| Toàn bộ 2016–2023 | 「điền sau」 | 「điền sau」 | (mới) |
+### 9.2 Kết quả toàn corpus 2016–2023 (lọc theo danh mục)
+| Cửa sổ | Base AUROC | RAG AUROC | News-volume | So với cũ |
+|---|---|---|---|---|
+| COVID (cùng cửa sổ) | 0.707 | **0.763** | 0.656 | cũ bundled 0.785 / 0.847 |
+| Rộng 2016–2020 | 0.693 | 0.681 | 0.677 | cũ bundled 0.710 |
+| Toàn bộ 2016–2023 | 0.615 | 0.652 | 0.662 | all-ticker (hỏng) 0.568 / 0.606 |
+
+**Đọc kết quả (trung thực):**
+1. **Lọc theo danh mục đã SỬA được lỗi:** COVID hồi phục từ 0.37 (all-ticker hỏng) → **0.76**; rộng 0.50 → **0.69**. Chẩn đoán đúng.
+2. **Nhưng corpus lớn KHÔNG vượt bộ tin bundled gốc** — thấp hơn nhẹ ở mọi cửa sổ (COVID 0.763 < 0.847; rộng 0.69 < 0.71). *Nhiều dữ liệu hơn ≠ tốt hơn* khi bộ nhỏ đã được tuyển khớp danh mục.
+3. **RAG giúp ở COVID (+0.056) và toàn bộ (+0.037)** nhưng không ở 2016–2020 (−0.01) — yếu hơn mức +0.074 trước.
+4. **Khiêm tốn:** baseline **news-volume (0.662) nhỉnh hơn TRR base (0.615)** ở toàn cửa sổ — đếm khối lượng tin danh mục là baseline mạnh (một kết quả âm trung thực).
+
+**Kết luận phần này:** giá trị của công đoạn corpus là **trình diễn pipeline Big Data ở quy mô lớn + xác nhận bản sửa**, không phải lập kỷ lục độ chính xác. Số headline vẫn là bundled COVID 0.785 / 0.847.
 
 ### 9.3 Số đo hạ tầng (đã có)
 - Tải corpus: ~39 MB/s, resumable; lọc cục bộ 22 GB → 12 GB.

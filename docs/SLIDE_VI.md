@@ -214,18 +214,18 @@
 
 ---
 
-### SLIDE 15 — Kết quả (2): Toàn bộ Corpus 2016–2023 「điền sau」
+### SLIDE 15 — Kết quả (2): Mở rộng Toàn bộ Corpus 2016–2023
 **② Nội dung**
 - So sánh trên **CÙNG cửa sổ** (corpus mới lọc-danh-mục vs số cũ):
-  - COVID: base 「điền sau」 / RAG 「điền sau」 (cũ 0.785 / 0.847)
-  - Rộng 2016–2020: 「điền sau」 (cũ 0.710)
-  - Toàn bộ 2016–2023: base 「điền sau」 / RAG 「điền sau」
-- Câu hỏi kiểm thử: "Corpus lớn có GIÚP không khi chọn lọc ĐÚNG (lọc theo danh mục)?"
+  - COVID: base **0.707** / RAG **0.763** (cũ bundled 0.785 / 0.847)
+  - Rộng 2016–2020: base **0.693** / RAG **0.681** (cũ bundled 0.710)
+  - Toàn bộ 2016–2023: base **0.615** / RAG **0.652** (news-volume 0.662)
+- Kết luận: lọc theo danh mục **hồi phục mạnh** (COVID từ 0.37 → 0.76) nhưng corpus lớn **không vượt** bộ bundled gốc → *nhiều dữ liệu ≠ tốt hơn*.
 
-**🎨 Hình ảnh — BẢNG so sánh + chừa chỗ biểu đồ:**
-> Bảng 3 hàng (COVID / Rộng / Toàn bộ) × 3 cột (Cũ · Mới-base · Mới-RAG). Tô ô "Mới" bằng nền vàng nhạt + chữ "「điền sau」". Khi có số, đổi thành grouped bar chart như slide 14. Thêm chú thích: "data mới = lọc theo 6 mã danh mục + xếp hạng salience".
+**🎨 Hình ảnh — GROUPED BAR CHART (3 nhóm × 2 cột):**
+> Grouped bar, trục Y = AUROC (0.4–0.9). 3 nhóm trục X: "COVID", "2016–2020", "Toàn bộ 2016–2023". Mỗi nhóm 2 cột: Base (xám) và RAG (xanh lá). Giá trị: COVID 0.707/0.763; 2016–2020 0.693/0.681; Toàn bộ 0.615/0.652. Vẽ đường ngang đứt nét tại **0.50** (ngẫu nhiên) và một dấu ★ nhỏ ghi "cũ bundled COVID 0.847" để so sánh. Ghi nhãn giá trị trên mỗi cột.
 
-**🎤 Ghi chú:** Slide này để TRỐNG số chờ mẻ Kaggle xong; nói rõ đây là phần kiểm thử giả thuyết.
+**🎤 Ghi chú:** Nhấn 2 ý trung thực: (1) đã sửa được lỗi chọn lọc (0.37→0.76); (2) corpus lớn không lập kỷ lục — giá trị là trình diễn quy mô Big Data + xác nhận bản sửa.
 
 ---
 
