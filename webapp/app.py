@@ -128,12 +128,15 @@ st.markdown(
 st.header("🔴 Live market monitor")
 st.caption("Current prices + current headlines (yfinance) → TRR live crash signal "
            "(MockLLM backend). Needs internet.")
+_use7b = st.checkbox("Use local Qwen2.5-7B-AWQ on the 2060 (real LLM, ~1–3 min) "
+                     "instead of the instant heuristic", value=False)
 if st.button("↻ Fetch live market data"):
     with st.spinner("Pulling live prices + news and running TRR…"):
         try:
             from webapp import live as _live
-            snap = _live.live_snapshot()
+            snap = _live.live_snapshot(use_local_7b=_use7b)
             sig = snap["signal"]
+            st.caption(f"backend: {sig.get('backend','?')}")
             c1, c2, c3 = st.columns(3)
             c1.metric("Live crash probability", f"{sig['crash_prob']:.0%}")
             c2.metric("Portfolio move (1d)", f"{snap['portfolio_move']:+.2%}")

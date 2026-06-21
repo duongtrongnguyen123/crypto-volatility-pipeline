@@ -51,14 +51,36 @@ def fetch_live_prices(tickers=TICKERS):
     return rows, port
 
 
-def run_live(headlines):
-    """Run one TRR step over the live headlines -> crash_prob, edges, rationale."""
-    from trr.brainstorm import build_impact_graph
+_LLM_CACHE = {}
+
+
+def _get_llm(use_local_7b: bool):
+    """MockLLM (instant) or the local Qwen2.5-7B-AWQ on the 2060 (cached)."""
+    if not use_local_7b:
+        from trr.llm import MockLLM
+        return MockLLM(), False
+    if "hf" not in _LLM_CACHE:
+        import os
+        from trr.llm import HFReasoningLLM
+        model = os.environ.get("SMALL_MODEL", "Qwen/Qwen2.5-7B-Instruct-AWQ")
+        _LLM_CACHE["hf"] = HFReasoningLLM(model_path=model, dtype="float16",
+                                         device="cuda", max_input_tokens=1536,
+                                         batch_size=4)
+    return _LLM_CACHE["hf"], True
+
+
+def run_live(headlines, use_local_7b: bool = False):
+    """Run one TRR step over the live headlines -> crash_prob, edges, rationale.
+
+    use_local_7b loads the local Qwen2.5-7B-AWQ on the 2060 (real LLM, ~1-3 min);
+    default MockLLM is instant. Budgets are capped for live latency.
+    """
     from trr.attention import pagerank_prune
-    from trr.llm import MockLLM
     from trr.reason import reason_crash
-    llm = MockLLM()
-    edges = llm.brainstorm_multi([headlines], TICKERS)[0] if headlines else []
+    llm, real = _get_llm(use_local_7b)
+    cap = headlines[:8] if real else headlines  # cap items for the slow 7B path
+    btok = 640 if real else 768
+    edges = llm.brainstorm_multi([cap], TICKERS, max_new_tokens=btok)[0] if cap else []
     pruned = pagerank_prune(edges, TICKERS, top_k=30)
     prob, rationale = (reason_crash(pruned, llm, universe=TICKERS)
                        if pruned else (0.0, "no impacts extracted from live news"))
@@ -71,14 +93,15 @@ def run_live(headlines):
                    "polarity": e.polarity, "weight": round(e.weight, 2)}
                   for e in pruned[:20]],
         "asof": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "backend": "Qwen2.5-7B-AWQ (local 2060)" if real else "MockLLM (heuristic)",
     }
 
 
-def live_snapshot():
+def live_snapshot(use_local_7b: bool = False):
     """One call -> everything the live monitor needs."""
     heads = fetch_live_headlines()
     prices, port_move = fetch_live_prices()
-    sig = run_live(heads)
+    sig = run_live(heads, use_local_7b=use_local_7b)
     return {"signal": sig, "prices": prices, "portfolio_move": port_move,
             "headlines": [{"ticker": h.assets[0], "title": h.title} for h in heads]}
 
