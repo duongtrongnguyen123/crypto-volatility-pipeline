@@ -70,12 +70,46 @@ def fig_campaign():
     fig.savefig(f"{OUT}/campaign_auroc.png", dpi=120, bbox_inches="tight"); plt.close(fig)
 
 
+def dump_fig_data(d):
+    """Dump the data behind each figure as JSON so the web can render INTERACTIVE
+    (Plotly) versions instead of static PNGs."""
+    import json
+    y, p = d["label_true"].to_numpy(), d["oof"].to_numpy()
+    bins = np.linspace(0, 1, 6)
+    idx = np.clip(np.digitize(p, bins) - 1, 0, len(bins) - 2)
+    rel = []
+    for b in range(len(bins) - 1):
+        m = idx == b
+        if m.sum():
+            rel.append({"pred": float(p[m].mean()), "obs": float(y[m].mean())})
+    port = build_portfolio_daily("data/fnspid/prices", TICKERS)
+    port.index = pd.to_datetime(port.index).date
+    fwd = port["portfolio_ret"].shift(-1)
+    dd = d.join(fwd.rename("fwd_ret")).dropna(subset=["fwd_ret"])
+    thr = dd["oof"].quantile(0.85)
+    inv = (dd["oof"] < thr).astype(float)
+    bh = (1 + dd["fwd_ret"]).cumprod()
+    strat = (1 + inv * dd["fwd_ret"]).cumprod()
+    campaign = [("Stock COVID", 0.785, 0.71), ("Stock 2016-20", 0.710, 0.747),
+                ("Crypto 2022-23", 0.530, 0.458), ("FNSPID bear", 0.550, 0.491)]
+    data = {
+        "reliability": rel,
+        "backtest": {"dates": [str(x) for x in dd.index],
+                     "buy_hold": [float(v) for v in bh],
+                     "trr_derisk": [float(v) for v in strat]},
+        "campaign": [{"window": w, "trr": t, "news_vol": n} for w, t, n in campaign],
+    }
+    with open("reports/stock_runs/fig_data.json", "w") as f:
+        json.dump(data, f)
+
+
 def main():
     d = _oof(build_dataset())
     fig_reliability(d)
     fig_backtest(d)
     fig_campaign()
-    print(f"[figures] wrote {OUT}/reliability.png, backtest_equity.png, campaign_auroc.png")
+    dump_fig_data(d)
+    print(f"[figures] wrote {OUT}/*.png + reports/stock_runs/fig_data.json")
 
 
 if __name__ == "__main__":

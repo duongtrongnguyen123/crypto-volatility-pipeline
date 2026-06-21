@@ -571,3 +571,57 @@ def _smoke() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_smoke())
+
+
+# --- Interactive figure builders (replace static PNGs in the web) -----------
+def load_fig_data(path: str = None) -> Optional[dict]:
+    import json
+    path = path or os.path.join(REPO_ROOT, "reports", "stock_runs", "fig_data.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        return json.load(open(path))
+    except Exception:
+        return None
+
+
+def build_campaign_figure(d: dict) -> go.Figure:
+    c = d["campaign"]
+    fig = go.Figure()
+    fig.add_bar(name="TRR (32B)", x=[r["window"] for r in c],
+                y=[r["trr"] for r in c], marker_color="#2980b9")
+    fig.add_bar(name="news-volume", x=[r["window"] for r in c],
+                y=[r["news_vol"] for r in c], marker_color="#bdc3c7")
+    fig.add_hline(y=0.5, line_dash="dot", line_color="#888")
+    fig.update_layout(title="Campaign: TRR vs news-volume (crash AUROC)",
+                      barmode="group", yaxis=dict(range=[0.4, 0.9], title="AUROC"),
+                      height=360, margin=dict(l=20, r=20, t=50, b=10))
+    return fig
+
+
+def build_reliability_figure(d: dict) -> go.Figure:
+    r = d["reliability"]
+    fig = go.Figure()
+    fig.add_scatter(x=[0, 1], y=[0, 1], mode="lines", line=dict(dash="dash",
+                    color="#888"), name="perfect")
+    fig.add_scatter(x=[p["pred"] for p in r], y=[p["obs"] for p in r],
+                    mode="lines+markers", line=dict(color="#c0392b"),
+                    name="TRR meta-learner (OOF)")
+    fig.update_layout(title="Reliability curve (walk-forward OOF)",
+                      xaxis_title="predicted crash prob", yaxis_title="observed",
+                      height=360, margin=dict(l=20, r=20, t=50, b=10))
+    return fig
+
+
+def build_backtest_figure(d: dict) -> go.Figure:
+    b = d["backtest"]
+    x = pd.to_datetime(b["dates"])
+    fig = go.Figure()
+    fig.add_scatter(x=x, y=b["buy_hold"], mode="lines", name="buy & hold",
+                    line=dict(color="#7f8c8d"))
+    fig.add_scatter(x=x, y=b["trr_derisk"], mode="lines", name="TRR de-risk",
+                    line=dict(color="#27ae60", width=2))
+    fig.update_layout(title="Economic backtest — de-risk overlay vs buy & hold",
+                      yaxis_title="growth of $1", height=360,
+                      margin=dict(l=20, r=20, t=50, b=10))
+    return fig

@@ -212,11 +212,17 @@ with tab_research:
             st.caption(table["caption"] or "")
             st.dataframe(lib.results_table_to_df(table), width="stretch",
                          hide_index=True)
-        st.markdown("### Figures")
-        for f in ["campaign_auroc.png", "reliability.png", "backtest_equity.png"]:
-            p = os.path.join(_FIG_DIR, f)
-            if os.path.exists(p):
-                st.image(p, width="stretch")
+        st.markdown("### Figures (interactive)")
+        _fd = lib.load_fig_data()
+        if _fd:
+            st.plotly_chart(lib.build_campaign_figure(_fd), width="stretch")
+            fcol1, fcol2 = st.columns(2)
+            with fcol1:
+                st.plotly_chart(lib.build_reliability_figure(_fd), width="stretch")
+            with fcol2:
+                st.plotly_chart(lib.build_backtest_figure(_fd), width="stretch")
+        else:
+            st.info("Run `.venv/bin/python -m train.figures` to generate figure data.")
 
 # ===========================================================================
 # TAB 3 — HOW IT WORKS
