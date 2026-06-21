@@ -86,6 +86,37 @@ Kết quả thực nghiệm chuyên sâu xác nhận tín hiệu crash từ tin 
 
 \pagenumbering{arabic}
 
+\section*{Phân công nhiệm vụ thành viên}
+\addcontentsline{toc}{section}{Phân công nhiệm vụ thành viên}
+Nhóm gồm hai thành viên; khối lượng công việc được phân chia theo tỉ lệ khoảng \textbf{60/40} dựa trên vai trò và đóng góp thực tế:
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{3.5cm} c X @{}}
+    \toprule
+    \textbf{Thành viên} & \textbf{Tỉ lệ} & \textbf{Công việc đảm nhận} \\
+    \midrule
+    \textbf{Dương Trọng Nguyên} & \textbf{60\%} &
+    \begin{itemize}[leftmargin=1.2em, nosep]
+        \item Thiết kế và cài đặt thuật toán TRR 4 pha (Brainstorm $\rightarrow$ Memory $\rightarrow$ Attention $\rightarrow$ Reason) và module Causal RAG.
+        \item Xây dựng pipeline Big Data: stream-filter corpus FNSPID 23 GB, Spark ETL $\rightarrow$ Parquet, lập chỉ mục SQLite theo ngày.
+        \item Triển khai phân tán mô hình 32B trên Kaggle (fan-out 40 shard); đánh giá AUROC, bootstrap significance, severity correlation và backtest kinh tế.
+        \item Tổng hợp và viết báo cáo (chính).
+    \end{itemize} \\
+    \midrule
+    \textbf{Nguyễn Ngọc Bình An} & \textbf{40\%} &
+    \begin{itemize}[leftmargin=1.2em, nosep]
+        \item Xây dựng tầng phục vụ thời gian thực: mô hình 7B-AWQ cục bộ, daemon live, API FastAPI và dashboard Streamlit.
+        \item Thu thập \& tiền xử lý dữ liệu (yfinance, Google News RSS); sinh nhãn crash từ giá tương lai.
+        \item Hiệu chuẩn xác suất (Isotonic), Precision@K và kết xuất hình ảnh/biểu đồ kết quả.
+        \item Chuẩn bị slide thuyết trình và video demo.
+    \end{itemize} \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\newpage
 \section{Giới thiệu \& Động lực Nghiên cứu}
 
 \subsection{Bối cảnh Thị trường và Khối lượng Dữ liệu}
