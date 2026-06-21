@@ -348,8 +348,9 @@ with tab_live:
 
     st.markdown("---")
     st.subheader("🔬 Try it — type a headline, watch TRR react")
-    st.caption("Type any market news; the pipeline extracts an impact graph and "
-               "predicts crash risk on YOUR input (heuristic MockLLM, instant).")
+    st.caption("Type any market news — the pipeline extracts an impact graph and gives "
+               "a quick **heuristic** crash estimate on your input (instant lexicon model, "
+               "for illustration). The rigorous numbers are the backtest above.")
     _txt = st.text_area("News headline(s), one per line",
                         "Major exchange hacked; contagion fears; cascading "
                         "liquidations hit BTC and ETH", height=70)

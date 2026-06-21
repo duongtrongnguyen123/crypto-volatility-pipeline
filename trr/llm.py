@@ -24,13 +24,27 @@ from trr.schema import PORTFOLIO, ImpactEdge, NewsItem
 
 # Lightweight lexicons for the deterministic mock backend.
 _NEG = {
-    "crash", "plunge", "collapse", "hack", "exploit", "bankruptcy", "default",
-    "lawsuit", "ban", "selloff", "liquidation", "fraud", "fear", "dump",
-    "halt", "insolvent", "contagion", "delist", "sec", "fud", "rug", "depeg",
+    # base + common variants (matching is exact-word, so include plural/past forms)
+    "crash", "crashes", "crashed", "plunge", "plunges", "plunged", "plunging",
+    "collapse", "collapses", "collapsed", "hack", "hacks", "hacked", "exploit",
+    "exploited", "bankruptcy", "bankrupt", "default", "defaults", "lawsuit",
+    "sue", "sues", "sued", "ban", "bans", "banned", "selloff", "sell-off",
+    "liquidation", "liquidations", "liquidated", "fraud", "fear", "fears",
+    "dump", "dumps", "dumped", "halt", "halts", "halted", "insolvent",
+    "insolvency", "contagion", "delist", "delisted", "sec", "fud", "rug",
+    "depeg", "panic", "tumble", "tumbles", "tumbled", "slump", "slumps",
+    "sink", "sinks", "sinking", "slide", "slides", "rout", "freeze", "frozen",
+    "downgrade", "downgraded", "recession", "warn", "warns", "warning", "loss",
+    "losses", "cut", "cuts", "weak", "drop", "drops", "fall", "falls", "probe",
+    "bearish", "sanction", "sanctions", "war", "crisis", "meltdown",
 }
 _POS = {
-    "surge", "rally", "approval", "etf", "adoption", "partnership", "upgrade",
-    "bullish", "record", "inflow", "halving", "breakout", "gain", "soar",
+    "surge", "surges", "surged", "rally", "rallies", "rallied", "approval",
+    "approve", "approved", "etf", "adoption", "partnership", "upgrade",
+    "upgraded", "bullish", "record", "records", "inflow", "inflows", "halving",
+    "breakout", "gain", "gains", "gained", "soar", "soars", "soared", "jump",
+    "jumps", "jumped", "rise", "rises", "beat", "beats", "profit", "profits",
+    "strong", "growth", "boom", "win", "wins", "rebound", "recover", "recovers",
 }
 
 
@@ -526,8 +540,11 @@ class MockLLM(ReasoningLLM):
             return 0.0, "no impacts"
         neg = sum(1 for t in tuples if t[2] < 0)
         frac_neg = neg / len(tuples)
-        # Logistic-ish squashing on negative concentration + volume.
-        prob = max(0.0, min(1.0, 0.15 + 0.7 * frac_neg + 0.02 * min(neg, 10)))
+        # Graded heuristic: blend negative CONCENTRATION (frac_neg) with negative
+        # VOLUME (count) so severity spreads the score across a range instead of
+        # snapping to one value — 1 neg edge ≈ 0.64, scaling up with more/heavier
+        # negatives; non-negative news stays low (~0.12).
+        prob = max(0.0, min(1.0, 0.12 + 0.45 * frac_neg + 0.07 * min(neg, 7)))
         return prob, f"{neg}/{len(tuples)} negative impacts toward portfolio"
 
     # Use the deterministic heuristics (not the stub generate) in batched mode.
