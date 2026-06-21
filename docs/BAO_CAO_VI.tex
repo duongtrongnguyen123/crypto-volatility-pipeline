@@ -56,7 +56,7 @@
 
 \onehalfspacing
 
-\title{\textbf{BÁO CÁO MÔN HỌC DỮ LIỆU LỚN (BIG DATA)}\\ \vspace{1cm} \huge \textbf{Suy luận Quan hệ và Thời gian của Mô hình Ngôn ngữ Lớn để Dự đoán Sụp đổ Giá Cổ phiếu và Crypto}\\ \vspace{0.5cm} \large (Temporal Relational Reasoning of LLMs for Stock Crash Prediction)}
+\title{\textbf{BÁO CÁO MÔN HỌC DỮ LIỆU LỚN (BIG DATA)}\\ \vspace{1cm} \huge \textbf{Suy luận Quan hệ và Thời gian của Mô hình Ngôn ngữ Lớn để Dự đoán Crash Giá Cổ phiếu và Crypto}\\ \vspace{0.5cm} \large (Temporal Relational Reasoning of LLMs for Stock Crash Prediction)}
 \author{\vspace{1cm}\\
 \textbf{Sinh viên thực hiện:}\\
 \textbf{Nguyễn Ngọc Bình An} \quad và \quad \textbf{Dương Trọng Nguyên}\\\vspace{0.5cm}\\
@@ -73,7 +73,7 @@
 \newpage
 \pagenumbering{roman}
 \begin{abstract}
-Báo cáo này trình bày toàn diện về việc xây dựng một hệ thống \textbf{dự đoán rủi ro sụp đổ (crash) của một danh mục cổ phiếu vốn hóa lớn và thị trường tiền mã hóa (crypto)}. Dựa trên framework Temporal Relational Reasoning (TRR) \cite{trr_paper}, hệ thống tận dụng \textbf{Mô hình Ngôn ngữ Lớn (LLM)} để đọc, phân tích và suy luận trực tiếp trên các bản tin tài chính bằng phương pháp \textbf{zero-shot} mà không cần huấn luyện lại trọng số mô hình. Chúng tôi thực hiện quy trình 4 pha: \textbf{Brainstorm $\rightarrow$ Memory $\rightarrow$ Attention $\rightarrow$ Reason}, tích hợp kỹ thuật Retrieval-Augmented Generation (RAG) \cite{rag} và đánh giá trên các hệ thống Big Data phân tán.
+Báo cáo này trình bày toàn diện về việc xây dựng một hệ thống \textbf{dự đoán rủi ro crash của một danh mục cổ phiếu vốn hóa lớn và thị trường tiền mã hóa (crypto)}. Dựa trên framework Temporal Relational Reasoning (TRR) \cite{trr_paper}, hệ thống tận dụng \textbf{Mô hình Ngôn ngữ Lớn (LLM)} để đọc, phân tích và suy luận trực tiếp trên các bản tin tài chính bằng phương pháp \textbf{zero-shot} mà không cần huấn luyện lại trọng số mô hình. Chúng tôi thực hiện quy trình 4 pha: \textbf{Brainstorm $\rightarrow$ Memory $\rightarrow$ Attention $\rightarrow$ Reason}, tích hợp kỹ thuật Retrieval-Augmented Generation (RAG) \cite{rag} và đánh giá trên các hệ thống Big Data phân tán.
 
 Về khía cạnh Dữ liệu lớn (Big Data), kiến trúc hệ thống tuân theo mô hình \textbf{Lambda Architecture}: Lớp Batch xử lý lượng dữ liệu khổng lồ 23,2 GB với 15,7 triệu bài báo (dữ liệu FNSPID) bằng Apache Spark \cite{spark} và phân tán suy luận (inference) qua một cụm (pool) GPU Kaggle \cite{kaggle}; Lớp Speed sử dụng Kafka \cite{kafka} và Spark Structured Streaming để xử lý luồng dữ liệu thời gian thực và đẩy lên giao diện phục vụ (FastAPI/Streamlit). 
 
@@ -94,14 +94,14 @@ Thị trường tài chính hiện đại sản sinh ra lượng dữ liệu có
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.85\textwidth,keepaspectratio]{../reports/figures/fig1_crash_timeline.png}
-    \caption{Dòng thời gian của các sự kiện sụp đổ thị trường (Crash Timeline) với các đợt sụt giảm giá nghiêm trọng được gắn nhãn tự động.}
+    \caption{Dòng thời gian của các sự kiện crash thị trường (Crash Timeline) với các đợt sụt giảm giá nghiêm trọng được gắn nhãn tự động.}
     \label{fig:crash_timeline}
 \end{figure}
 
 \subsection{Giả thuyết Thị trường Hiệu quả (EMH) và Giới hạn của Dự báo}
 Trong phân tích định lượng truyền thống, việc dự báo \textbf{hướng đi của giá cổ phiếu} (giá ngày mai sẽ tăng hay giảm) gần như là một nhiệm vụ bất khả thi. Điều này được minh chứng mạnh mẽ bởi giả thuyết thị trường hiệu quả (Efficient Market Hypothesis - EMH) ở dạng yếu: tất cả những thông tin công khai đã ngay lập tức phản ánh vào giá hiện tại. Biến động giá hàng ngày thường mang đặc tính của bước đi ngẫu nhiên (random walk) hoặc chuỗi hiệu số martingale (martingale difference).
 
-Dù vậy, \textbf{rủi ro sụp đổ (crash)} — tức rủi ro đuôi trái (left-skewed tail-risk) — lại là một hiện tượng khác biệt. Mặc dù các ngày giao dịch biến động mạnh chỉ chiếm khoảng 5\% tổng số ngày giao dịch, nhưng chúng lại đóng góp tới 19\% tổng mức dịch chuyển của thị trường. Các cuộc sụp đổ thường được báo trước hoặc đồng hành bởi sự lây lan tâm lý sợ hãi trên mặt báo và các sự kiện chấn động mang tính dây chuyền. Như thấy ở Hình \ref{fig:crash_timeline}, các đợt sụt giảm mang tính cụm (volatility clustering) do sự lây lan thông tin. Sự lan truyền thông tin tiêu cực thường có độ trễ do tâm lý đám đông, tạo ra một cửa sổ cơ hội ngắn để dự báo. Do đó, việc xây dựng mô hình dự báo sụp đổ rủi ro đuôi là một nhiệm vụ khả thi và có cơ sở khoa học hơn nhiều so với dự báo hướng giá hằng ngày.
+Dù vậy, \textbf{rủi ro crash} — tức rủi ro đuôi trái (left-skewed tail-risk) — lại là một hiện tượng khác biệt. Mặc dù các ngày giao dịch biến động mạnh chỉ chiếm khoảng 5\% tổng số ngày giao dịch, nhưng chúng lại đóng góp tới 19\% tổng mức dịch chuyển của thị trường. Các cuộc crash thường được báo trước hoặc đồng hành bởi sự lây lan tâm lý sợ hãi trên mặt báo và các sự kiện chấn động mang tính dây chuyền. Như thấy ở Hình \ref{fig:crash_timeline}, các đợt sụt giảm mang tính cụm (volatility clustering) do sự lây lan thông tin. Sự lan truyền thông tin tiêu cực thường có độ trễ do tâm lý đám đông, tạo ra một cửa sổ cơ hội ngắn để dự báo. Do đó, việc xây dựng mô hình dự báo crash rủi ro đuôi là một nhiệm vụ khả thi và có cơ sở khoa học hơn nhiều so với dự báo hướng giá hằng ngày.
 
 \subsection{Động lực Sử dụng Mô hình Ngôn ngữ Lớn (LLM)}
 Động lực chính của đề tài là: \textit{Thay vì ép buộc các mô hình học máy truyền thống học một hàm ánh xạ hộp đen (black-box) từ phương pháp đếm từ vựng (bag-of-words) hoặc TF-IDF sang biến động giá, tại sao ta không để một LLM siêu lớn tự mình đọc đoạn văn bản và suy luận về quan hệ nhân quả?} 
@@ -204,7 +204,7 @@ Hệ thống duy trì một vector database chứa đại diện TF-IDF của to
 \begin{equation}
     \text{sim}(t, t') = \frac{\mathbf{v}_t \cdot \mathbf{v}_{t'}}{\|\mathbf{v}_t\| \|\mathbf{v}_{t'}\|}
 \end{equation}
-Sau đó, RAG đính kèm kết cục thực tế của ngày $t'$ (vd: "Thực tế: Sau ngày này, thị trường đã SỤP ĐỔ -10\%") trực tiếp vào Prompt của pha \textbf{Reason} dưới dạng \textit{case-based few-shot examples}.
+Sau đó, RAG đính kèm kết cục thực tế của ngày $t'$ (vd: "Thực tế: Sau ngày này, thị trường đã CRASH -10\%") trực tiếp vào Prompt của pha \textbf{Reason} dưới dạng \textit{case-based few-shot examples}.
 
 Việc này biến mô hình zero-shot tĩnh thành một mô hình \textbf{dynamic case-based few-shot}, nâng cấp đáng kể năng lực suy đoán. Cụ thể, trên cửa sổ khủng hoảng COVID-19, AUROC tăng vọt từ 0.785 lên \textbf{0.847}. Đặc biệt đối với các mô hình tham số nhỏ như Qwen2.5-7B, RAG giúp nâng điểm AUROC từ 0.525 lên 0.583, đóng khoảng cách hiệu năng với mô hình 32B đắt tiền.
 
@@ -213,7 +213,7 @@ Việc này biến mô hình zero-shot tĩnh thành một mô hình \textbf{dyna
 Dự án hoàn thiện một hệ thống Big Data xử lý cả lô lớn (Batch) và luồng (Stream) thời gian thực theo cấu trúc Lambda, đảm bảo tính vẹn toàn dữ liệu và tối ưu chi phí VRAM.
 
 \subsection{Tầng Batch (Xử lý Ngoại tuyến bằng GPU)}
-Lớp Batch đóng vai trò là nguồn dữ liệu gốc (source of truth). Nó thực thi mô hình Qwen2.5-32B khổng lồ (với $\sim 65$ GB VRAM yêu cầu) qua các tập dữ liệu lịch sử nhiều năm để đo lường AUROC thực tế và kiểm định các chiến lược kinh tế. Việc tính toán trên hàng triệu dòng dữ liệu tạo ra điểm nghẽn nghiêm trọng, do đó quá trình được \textbf{phân tán Fan-out GPU}: chia toàn bộ lịch sử thành 40 mảnh (shards) dữ liệu song song và cấp phát lên một nhóm (pool) 18 tài khoản Kaggle. Điều này giảm thời gian từ $\sim 5$ giờ xuống chỉ còn $\sim 20$ phút mỗi đợt quét toàn bộ chiến dịch. Do bị giới hạn bởi không có kết nối internet nội bộ (air-gapped), tầng này hoàn toàn tĩnh.
+Lớp Batch đóng vai trò là nguồn dữ liệu gốc (source of truth). Nó thực thi mô hình Qwen2.5-32B khổng lồ (với $\sim 65$ GB VRAM yêu cầu) qua các tập dữ liệu lịch sử nhiều năm để đo lường AUROC thực tế và kiểm định các chiến lược kinh tế. Việc tính toán trên hàng triệu dòng dữ liệu tạo ra điểm nghẽn nghiêm trọng, do đó quá trình được \textbf{phân tán Fan-out GPU}: chia toàn bộ lịch sử thành 40 mảnh (shards) dữ liệu song song và cấp phát lên một nhóm (pool) GPU Kaggle free-tier. Điều này giảm thời gian từ $\sim 5$ giờ xuống chỉ còn $\sim 20$ phút mỗi đợt quét toàn bộ chiến dịch. Do bị giới hạn bởi không có kết nối internet nội bộ (air-gapped), tầng này hoàn toàn tĩnh.
 
 \subsection{Tầng Speed \& Tầng Phục vụ (Xử lý Thời gian thực)}
 Để phục vụ giao dịch trực tiếp, các luồng tin tức và giá cả được thu thập qua API và đẩy thẳng vào cluster \textbf{Apache Kafka}. Một job \textbf{Spark Structured Streaming} chạy liên tục theo cửa sổ trượt 5 phút (watermark) để hấp thụ luồng Kafka. 
@@ -260,7 +260,7 @@ Việc mở rộng hệ thống lên toàn bộ 4,5 triệu bài báo của FNSP
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.85\textwidth,keepaspectratio]{../reports/figures/fig_corpus_auroc.png}
-    \caption{AUROC của Base vs RAG vs News-volume trên Toàn corpus 2016-2023. Đồ thị được kết xuất từ tập kiểm định 78 sự kiện sụp đổ.}
+    \caption{AUROC của Base vs RAG vs News-volume trên Toàn corpus 2016-2023. Đồ thị được kết xuất từ tập kiểm định 78 sự kiện crash.}
     \label{fig:corpus_auroc}
 \end{figure}
 
@@ -282,10 +282,20 @@ Việc mở rộng hệ thống lên toàn bộ 4,5 triệu bài báo của FNSP
 
 \textbf{Bài học đúc kết trung thực:}
 \begin{enumerate}
-    \item \textbf{Cải thiện RAG có ý nghĩa toàn diện:} Trên mẫu lớn 8 năm (78 đợt sụp đổ), RAG cải thiện hiệu năng từ 0.615 lên 0.652, với $p=0.047$. Điều này chứng minh RAG giúp ích thực sự khi cung cấp các sự kiện tiền lệ làm ngữ cảnh tham chiếu.
+    \item \textbf{Cải thiện RAG có ý nghĩa toàn diện:} Trên mẫu lớn 8 năm (78 đợt crash), RAG cải thiện hiệu năng từ 0.615 lên 0.652, với $p=0.047$. Điều này chứng minh RAG giúp ích thực sự khi cung cấp các sự kiện tiền lệ làm ngữ cảnh tham chiếu.
     \item \textbf{Dữ liệu lớn chưa hẳn đã tốt hơn dữ liệu tinh:} Corpus FNSPID khổng lồ (0.652 trên toàn cục, 0.763 trên cửa sổ COVID) không thể vượt qua bộ Analyst-ratings nhỏ bé nhưng đã được tuyển chọn khắt khe (0.847 trên cửa sổ COVID). 
     \item \textbf{Baseline News-volume cực mạnh trên Big Data:} Không giống như bộ Analyst-ratings, đếm số lượng tin bài (News-volume) trên toàn bộ mạng lưới báo chí FNSPID hoạt động như một chỉ báo tâm lý bầy đàn (herd panic) rất mạnh (0.662). Dù vậy, LLM suy luận với RAG có khả năng tiệm cận hiệu năng này và nắm bắt được gốc rễ nhân quả của tin tức thay vì chỉ đếm tần suất.
 \end{enumerate}
+
+\subsubsection{Đánh giá liên tục theo độ sâu crash (Severity)}
+AUROC nhị phân chỉ dùng $\sim$78 ngày crash. Một thước đo trung thực hơn là tương quan giữa \texttt{crash\_prob} dự đoán và \textbf{độ sâu sụt giá 3 ngày thực tế} trên \textbf{toàn bộ 1.860 ngày} (không chỉ các ngày crash hiếm hoi). Hệ số Spearman$(\texttt{crash\_prob}, \text{fwd\_ret})$ đạt $-0.087$ (Base) và $\mathbf{-0.104}$ (RAG), đều có ý nghĩa thống kê ($p<10^{-4}$): xác suất dự đoán càng cao thì mức sụt giá thực tế càng sâu, và RAG mạnh hơn Base. Theo phân vị (decile), nhóm xác suất cao nhất có mức sụt giá sâu gấp $\sim$5--6 lần nhóm thấp nhất. Đây là bằng chứng dựa trên N lớn, bổ sung cho AUROC nhị phân (small-N).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth,keepaspectratio]{../reports/figures/fig_corpus_severity.png}
+    \caption{Severity: mức sinh lời 3 ngày trung bình theo decile của \texttt{crash\_prob} (Base vs RAG) trên toàn corpus 2016--2023 --- prob cao hơn ứng với sụt giá sâu hơn.}
+    \label{fig:corpus_severity}
+\end{figure}
 
 \subsection{Chạy thực nghiệm trên Crypto \& Khảo sát 14B vs 32B}
 
@@ -307,7 +317,7 @@ Trên tập dữ liệu Crypto Bear Market 2022-2023:
 Sự chênh lệch quy mô (scale) tham số không chỉ giúp mô hình thông minh hơn trên in-sample, mà còn giữ độ bền (robustness) để sống sót khi thị trường đổi chiều (regime shift).
 
 \subsection{Dự đoán Per-Asset (Từng Mã Tài Sản Riêng Lẻ)}
-Thay vì dự báo cả danh mục, chúng tôi đã ép mô hình xuất ra dự báo sụp đổ cho từng đồng tiền mã hóa. 
+Thay vì dự báo cả danh mục, chúng tôi đã ép mô hình xuất ra dự báo crash cho từng đồng tiền mã hóa. 
 
 \begin{figure}[htbp]
     \centering
@@ -387,7 +397,7 @@ Kết quả cho thấy TRR dự báo các đợt sập xuất sắc ngay cả tr
 Việc công bố các thử nghiệm thất bại (negative results) là chuẩn mực đạo đức của khoa học dữ liệu, ngăn chặn việc quá tự tin vào AI. Chúng tôi đã cài cắm thêm hàng loạt cơ chế hiện đại nhưng đều thất bại do sự bất ổn (non-stationarity) của thị trường.
 
 \subsection{Hiệu chuẩn Xác suất (Probability Calibration)}
-LLM (đặc biệt là phiên bản 32B) thường gặp hiện tượng \textit{quá tự tin (Overconfidence)}. Chúng thường đưa ra dự đoán rủi ro $60\%-80\%$ cho những ngày chỉ có tín hiệu tiêu cực nhẹ, trong khi tỷ lệ sụp đổ cơ sở chỉ là $11\%$. Brier Score ban đầu là 0.191 (cực kỳ tệ).
+LLM (đặc biệt là phiên bản 32B) thường gặp hiện tượng \textit{quá tự tin (Overconfidence)}. Chúng thường đưa ra dự đoán rủi ro $60\%-80\%$ cho những ngày chỉ có tín hiệu tiêu cực nhẹ, trong khi tỷ lệ crash cơ sở chỉ là $11\%$. Brier Score ban đầu là 0.191 (cực kỳ tệ).
 
 \begin{figure}[htbp]
     \centering
@@ -422,7 +432,7 @@ Kỳ vọng là mô hình sẽ rất mạnh, nhưng thực tế:
     \label{fig:feature_importance}
 \end{figure}
 
-\textbf{Lý do:} Sự thay đổi trật tự giữa năm 2022 (Bear) và 2023 (Bull) khiến quy luật giá lật ngược hoàn toàn. Do số lượng mẫu sụp đổ tương đối nhỏ (small-N = 76 ngày), các mô hình có cấu trúc phức tạp như GNN nhanh chóng bị overfitting trên nhiễu dữ liệu và suy giảm hiệu năng nghiêm trọng ở tập Out-of-Fold. Suy luận bằng quy tắc LLM Zero-shot lại thắng tuyệt đối vì nó không bị lệ thuộc vào trọng số tối ưu từ tập dữ liệu quá khứ. Các đặc trưng khối lượng giao dịch (Volume) thường có đóng góp nhiễu âm vào tập test (Hình \ref{fig:feature_importance}).
+\textbf{Lý do:} Sự thay đổi trật tự giữa năm 2022 (Bear) và 2023 (Bull) khiến quy luật giá lật ngược hoàn toàn. Do số lượng mẫu crash tương đối nhỏ (small-N = 76 ngày), các mô hình có cấu trúc phức tạp như GNN nhanh chóng bị overfitting trên nhiễu dữ liệu và suy giảm hiệu năng nghiêm trọng ở tập Out-of-Fold. Suy luận bằng quy tắc LLM Zero-shot lại thắng tuyệt đối vì nó không bị lệ thuộc vào trọng số tối ưu từ tập dữ liệu quá khứ. Các đặc trưng khối lượng giao dịch (Volume) thường có đóng góp nhiễu âm vào tập test (Hình \ref{fig:feature_importance}).
 
 \section{Tổng kết}
 
@@ -430,7 +440,7 @@ Báo cáo này đại diện cho một nỗ lực khổng lồ nhằm số hóa 
 
 \subsection{Thành tựu Chính}
 \begin{enumerate}
-    \item \textbf{Khẳng định năng lực LLM Zero-shot:} Khung kiến trúc TRR 4 pha (Brainstorm, Memory, Attention, Reason) đã chiết xuất ra một tín hiệu cảnh báo thị trường sụp đổ độc lập với giá cả, đạt AUROC cao (lên tới 0.847 trong kỳ khủng hoảng COVID). RAG đem lại sự cải thiện vững chắc $+0.06$.
+    \item \textbf{Khẳng định năng lực LLM Zero-shot:} Khung kiến trúc TRR 4 pha (Brainstorm, Memory, Attention, Reason) đã chiết xuất ra một tín hiệu cảnh báo thị trường crash độc lập với giá cả, đạt AUROC cao (lên tới 0.847 trong kỳ khủng hoảng COVID). RAG đem lại sự cải thiện vững chắc $+0.06$.
     \item \textbf{Cơ sở Hạ tầng Lambda Big Data Thực tiễn:} Tiền xử lý thành công corpus FNSPID 23,2 GB / 15,7 triệu bài báo bằng kiến trúc \textbf{Spark Streaming + Parquet}, kết hợp với Kafka cho độ trễ thấp ở tầng Serving, và phân tán GPU song song ở tầng Batch offline. Cấu trúc Lambda giúp vượt qua hoàn toàn rào cản tài nguyên VRAM.
     \item \textbf{Lợi ích Kinh tế Thiết thực:} Dù mang các khuyết điểm về Calibration, tín hiệu vẫn chuyển hóa xuất sắc thành chiến lược De-risk Overlay, giảm mức lỗ lịch sử từ -75\% xuống chỉ còn -52\% và nâng Sharpe Ratio tổng thể.
 \end{enumerate}
