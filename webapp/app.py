@@ -147,9 +147,13 @@ def _live_panel():
             snap = _live.live_snapshot(use_local_7b=False)  # else fetch inline (instant heuristic)
         sig = snap["signal"]
         prob = sig["crash_prob"]
-        st.metric("🔴 LIVE crash probability", f"{prob:.0%}",
+        st.metric("🔴 Crash probability — next ~3 trading days", f"{prob:.0%}",
                   delta=f"{snap['portfolio_move']:+.2%} portfolio (1d)",
                   delta_color="inverse")
+        st.caption("Horizon is fixed at ~3 trading days (the trained/validated "
+                   "target). Frequent polling only refreshes this same 3-day-ahead "
+                   "estimate as new headlines arrive — it is NOT a minute/intraday "
+                   "forecast (the method is daily-resolution).")
         st.progress(min(prob, 1.0))
         st.caption(f"updated {sig['asof']} · backend {sig.get('backend','?')} · "
                    f"{sig['n_news']} headlines · {sig['n_edges']} impact edges · "
