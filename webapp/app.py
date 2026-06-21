@@ -158,6 +158,35 @@ with tab_live:
             st.warning(f"Live fetch unavailable (need internet / yfinance): {exc}")
 
     _live_panel()
+
+    st.markdown("#### 📰 Live news feed")
+    st.caption("Company + **macro** headlines (Fed, rates, VIX, geopolitics), "
+               "newest first — auto-updates.")
+
+    @st.fragment(run_every=_interval)
+    def _news_feed():
+        from webapp import live as _live
+        try:
+            heads = _live.fetch_live_headlines(include_macro=True, max_per=6)
+            heads = sorted(heads, key=lambda h: h.timestamp, reverse=True)[:25]
+            for h in heads:
+                tag = h.assets[0]
+                macro = tag.startswith("MACRO")
+                icon = "🌐" if macro else "🏢"
+                colour = "#b45309" if macro else "#334155"
+                t = h.timestamp.strftime("%m-%d %H:%M")
+                st.markdown(
+                    f"<div style='padding:3px 0;border-bottom:1px solid #eef'>"
+                    f"<span style='color:#94a3b8;font-size:0.78rem'>{t}</span> "
+                    f"<span style='background:{'#fef3c7' if macro else '#eef2ff'};"
+                    f"color:{colour};border-radius:6px;padding:1px 7px;"
+                    f"font-size:0.72rem;font-weight:600'>{icon} {tag}</span> "
+                    f"{h.title}</div>", unsafe_allow_html=True)
+        except Exception as exc:  # noqa: BLE001
+            st.caption(f"news feed unavailable: {exc}")
+
+    _news_feed()
+
     if st.button("↻ Run once with local Qwen-7B + RAG (real LLM, ~1–3 min)"):
         with st.spinner("Loading 7B-AWQ + reasoning over live news…"):
             try:

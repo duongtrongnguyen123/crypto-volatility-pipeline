@@ -10,15 +10,23 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 TICKERS = ["AAPL", "AMZN", "GOOGL", "NVDA", "TSLA", "NFLX"]
+# Macro / market-wide news (the corpus is otherwise company-finance-heavy and
+# macro-light) — index/rate/vol tickers surface Fed, rates, geopolitics, market.
+MACRO = {"^GSPC": "MKT", "^IXIC": "MKT", "^VIX": "VIX", "^TNX": "RATES"}
 
 
-def fetch_live_headlines(tickers=TICKERS, max_per: int = 6):
-    """Current headlines per ticker via yfinance -> list[NewsItem] (today)."""
+def fetch_live_headlines(tickers=TICKERS, max_per: int = 6, include_macro: bool = True):
+    """Current headlines via yfinance -> list[NewsItem] (today).
+
+    Pulls per-ticker company news plus, when include_macro, market/macro headlines
+    (Fed, rates, VIX, geopolitics) from index tickers — tagged with a MACRO label.
+    """
     import yfinance as yf
     from trr.schema import NewsItem
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     items, seen = [], set()
-    for t in tickers:
+    sources = list(tickers) + (list(MACRO) if include_macro else [])
+    for t in sources:
         try:
             news = getattr(yf.Ticker(t), "news", []) or []
         except Exception:  # noqa: BLE001
@@ -37,8 +45,10 @@ def fetch_live_headlines(tickers=TICKERS, max_per: int = 6):
                     ts = datetime.fromisoformat(str(pub).replace("Z", "+00:00")).replace(tzinfo=None)
                 except ValueError:
                     pass
+            tag = f"MACRO:{MACRO[t]}" if t in MACRO else t
             items.append(NewsItem(id=f"{t}-{i}", timestamp=ts, title=title,
-                                  source="yfinance", assets=[t]))
+                                  source="yfinance-macro" if t in MACRO else "yfinance",
+                                  assets=[tag]))
     return items
 
 
