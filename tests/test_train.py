@@ -52,3 +52,17 @@ def test_ensemble_scorer_optional():
     out = score_ensemble(0.6, 20, 12)
     assert 0.0 <= out["ensemble_crash_prob"] <= 1.0
     assert "technicals_asof" in out
+
+
+def test_salient_selection_bounded():
+    """News volume scales but the LLM-input set stays capped at k (and dedups)."""
+    from datetime import datetime
+    from trr.schema import NewsItem
+    from trr.select import select_salient
+    items = [NewsItem(id=str(i), timestamp=datetime(2026, 1, 1),
+                      title=("Fed hikes rates markets tumble" if i % 3 else f"calm day {i}"),
+                      assets=["AAPL"]) for i in range(2000)]
+    sel = select_salient(items, 40, ["AAPL", "NVDA"])
+    assert len(sel) == 40
+    # crash-salient headline should be selected over 'calm day' filler
+    assert any("tumble" in s.title for s in sel)

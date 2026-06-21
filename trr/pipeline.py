@@ -51,7 +51,13 @@ class TRRPipeline:
         rag=None,
         rag_labels=None,
         multi_hop=False,
+        select_mode="head",
     ) -> None:
+        # select_mode: how to cap to max_items_per_day when a day has more news.
+        # "head" = first-N (default, unchanged); "salient" = dedup + rank by
+        # crash/▲ salience + ticker mention (lets news VOLUME scale without
+        # raising LLM cost — the bounded set is the most informative).
+        self.select_mode = select_mode
         self.llm = llm if llm is not None else MockLLM()
         # multi_hop: enrich the reasoning context with multi-hop causal chains
         # (Graph-RAG) walked from the accumulated impact graph.
@@ -154,6 +160,10 @@ class TRRPipeline:
         C: reason ALL days in one batched LLM pass.
         """
         day_news = [news_by_day.get(d, []) for d in dates]
+        if self.select_mode == "salient":
+            from trr.select import select_salient
+            day_news = [select_salient(dn, self.max_items_per_day, self.portfolio)
+                        for dn in day_news]
 
         # Phase A — batched brainstorming.
         edges_per_day = self.llm.brainstorm_multi(
