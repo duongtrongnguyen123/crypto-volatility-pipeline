@@ -1,0 +1,16 @@
+{
+  "risk_level": "ELEVATED",
+  "crash_prob": 0.45,
+  "horizon": "next ~3 trading days",
+  "at_risk_assets": [],
+  "top_drivers": [],
+  "cautions": [
+    "Consider risk-reduction sizing if the signal persists over consecutive days (3-day horizon)."
+  ],
+  "rationale": "There are multiple negative impacts concentrated on TSLA and NVDA, with additional negative signals for AAPL and AMZN. While this indicates notable stress, it has not yet spread to a portfolio-wide contagion.",
+  "backend": "Qwen2.5-32B",
+  "asof": "2026-06-21T08:24:24+00:00",
+  "disclaimer": "Research/analysis output \u2014 NOT financial advice.",
+  "n_headlines": 12,
+  "as_of_day": "2026-06-21"
+}
