@@ -67,12 +67,16 @@ def _to_newsitems(rows: list[dict]):
 
 def tick(store: list[dict], retain_min: int, backend: str, force: bool, rag: bool = False):
     """One poll: fetch, merge, prune, (maybe) run model. Returns (store, ran)."""
-    from webapp.live import fetch_live_headlines, fetch_live_prices, run_live, run_live_window
+    from webapp.live import (FEED_TICKERS, fetch_live_headlines, fetch_live_prices,
+                             run_live, run_live_window)
     now = _now()
-    # 1-2. fetch + merge new (dedup by ticker+title); keep the ARTICLE's pub time
+    # 1-2. fetch + merge new (dedup by ticker+title); keep the ARTICLE's pub time.
+    # Fetch the FULL display feed (~50 large-caps + macro + crypto + world ≈ 500/day)
+    # so the store/feed is rich; the prediction is filtered back to company+macro below.
     seen = {(r["ticker"], r["title"]) for r in store}
     fresh = 0
-    for h in fetch_live_headlines():
+    for h in fetch_live_headlines(FEED_TICKERS, max_per=12, include_macro=True,
+                                  include_crypto=True, include_world=True):
         key = (h.assets[0], h.title)
         if key not in seen:
             seen.add(key)
@@ -92,7 +96,11 @@ def tick(store: list[dict], retain_min: int, backend: str, force: bool, rag: boo
     # 4. run model only when something changed (or forced)
     ran = False
     if fresh or force:
-        items = _to_newsitems(store)
+        # Display/store keeps the full feed; the PREDICTION stays company+macro
+        # (the trained distribution) — drop crypto/world before reasoning.
+        pred_rows = [r for r in store
+                     if not r["ticker"].startswith(("CRYPTO:", "WORLD:"))]
+        items = _to_newsitems(pred_rows)
         if rag:  # single-step reasoning + analogues from the LABELED historical bank
             sig = run_live(items, use_local_7b=(backend == "7b"), use_rag=True)
         else:    # full multi-day pipeline (temporal decay across days)
