@@ -237,6 +237,7 @@
 ### SLIDE 16 — Phân tích Trung thực
 **② Nội dung**
 - **Small-N là trần:** chỉ 14–82 ngày crash (~4%) → đọc AUROC tuyệt đối thận trọng.
+- **Bằng chứng N-lớn (trung thực hơn):** trên cả 1.860 ngày, crash_prob tương quan **âm có ý nghĩa** với độ sâu sụt giá thực tế — base −0.087, **RAG −0.104 (p<1e-4)**; nhóm prob cao sụt sâu ~5–6× nhóm thấp.
 - **Kết quả âm trung thực:** Graph-RAG đa bước, hướng 3 lớp, đặc trưng khối lượng OHLCV, meta-RAG — đều không tăng.
 - **Bẫy Big Data đã gặp:** corpus toàn-mã + chọn theo truy vấn crash **làm giảm tín hiệu** (liên quan ≠ liên quan-danh-mục) → đã sửa bằng lọc danh mục.
 - **Phạm vi phân tán:** Spark pseudo-distributed + pool GPU Kaggle free-tier (không phải cluster HDFS nhiều máy) — nêu rõ, code sẵn cho cluster.

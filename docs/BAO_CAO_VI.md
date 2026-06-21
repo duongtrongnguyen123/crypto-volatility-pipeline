@@ -148,7 +148,20 @@ Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo
 
 **Kết luận phần này:** số rigorous đại diện là **toàn corpus 0.615 → 0.652 (+0.037, p=0.047)**; COVID 0.785/0.847 là **cận-trên best-case** một cú panic. Giá trị công đoạn corpus = trình diễn Big Data quy mô lớn + xác nhận RAG có ý nghĩa trên chuỗi 8 năm.
 
-### 9.3 Số đo hạ tầng (đã có)
+### 9.3 Đánh giá liên tục theo độ sâu sụp đổ (severity — trung thực hơn)
+AUROC nhị phân chỉ dùng ~78 ngày crash. Thước đo trung thực hơn: tương quan giữa **crash_prob dự đoán** và **độ sâu sụt giá 3 ngày thực tế** trên **TOÀN bộ 1.860 ngày** (không chỉ ngày crash).
+
+| | Spearman(crash_prob, fwd_ret) | p-value | Pearson |
+|---|---|---|---|
+| Base | **−0.087** | 1.8e-4 | −0.069 |
+| **RAG** | **−0.104** | **6.4e-6** | −0.106 |
+
+Tương quan **âm và có ý nghĩa** ở cả hai → **prob cao hơn ⇒ sụt sâu hơn** (đúng kỳ vọng); RAG mạnh hơn base. Theo decile: nhóm prob cao nhất sụt sâu **~5–6×** nhóm prob thấp nhất (RAG: −1,1% so với −0,46%).
+
+![Severity theo decile](../reports/figures/fig_corpus_severity.png)
+> Tái tạo: `python kaggle/corpus_correlation.py`. Đây là bằng chứng dựa trên N lớn (1.860 ngày), bổ sung cho AUROC nhị phân (small-N).
+
+### 9.4 Số đo hạ tầng (đã có)
 - Tải corpus: ~39 MB/s, resumable; lọc cục bộ 22 GB → 12 GB.
 - Chỉ mục SQLite: 1,9 GB, tra cứu ngày COVID (4.098 bài) trong 44 ms.
 - Spark ETL: 12 GB → 718 MB Parquet / 101 s; truy vấn Parquet 4,5 triệu dòng / 2,4 s.
