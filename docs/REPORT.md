@@ -276,6 +276,25 @@ underperform; with more data **and** a leakage-controlled, source-matched
 evaluation (stock 2016-2023), a small regularised meta-learner is a modest but
 real improvement — and its economic payoff is robust.
 
+### 5.8 Latest findings (parallel-batch campaign + deployment)
+Consolidated from `../reports/RESULTS_TRR.md` (the live master); every number there.
+
+- **RAG helps beyond COVID (the robust win).** Case-based retrieval of similar
+  labeled past days lifts 32B crash AUROC across regimes: broad-stock 2016-2020
+  **+0.074** (0.657→0.731, bootstrap p=0.009), FNSPID 2021-23 bear **+0.065**
+  (0.550→0.615, p=0.004), COVID +0.063 (borderline, 14 events). 2/3 significant.
+- **RAG helps the 7B even more (+0.058 pooled), lifting it to ≈ the 32B baseline**
+  (0.583 vs 0.570) — a cheap ~8GB-class local model + RAG approaches the big
+  model. 32B+RAG still best (0.602). RAG is the single most reliable enhancement.
+- **Negatives (honestly reported):** multi-hop Graph-RAG (shared-driver and
+  chain-eliciting) = no gain (~0.53, closed); 3-class up/flat/down direction =
+  ~chance; OHLCV **volume** features = no gain / regime-unstable (intraday range
+  kept, volume dropped); RAG analogue-rate as a meta-feature = no gain (reverted).
+- **Deployment:** local Qwen2.5-7B-AWQ runs on an RTX 2060 (5.6 GB), with
+  **live-RAG** retrieving from a 2,033-day labeled historical bank; a daily
+  advisory (risk level, exposed assets, drivers, cautions) is the feasible cadence
+  (3-day horizon), served via a Streamlit web platform + FastAPI.
+
 ---
 
 ## 6. Feasibility Analysis
