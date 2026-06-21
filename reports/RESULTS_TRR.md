@@ -458,6 +458,25 @@ match; now demonstrated on **stocks** (domain gap closed) and with a **direction
 target (literal-price gap closed, though weak); the durable signal remains
 crash/large-move detection, not raw price.
 
+### Multi-hop Graph-RAG (`trr/graphrag.py`) — A/B on crypto 2022-23
+In-process Graph-RAG (the comparison repo's Neo4j idea without the DB): walk the
+accumulated impact graph for multi-hop contagion chains (X->Y->asset) + shared
+systemic drivers (one event hitting >=2 assets), injected into the reasoning
+context. 32B A/B:
+
+| Variant | crash AUROC |
+|---|---|
+| baseline | 0.530 |
+| + multi-hop Graph-RAG (shared-driver) | 0.528 |
+
+**No gain** in this run. Caveat: MockLLM/standard brainstorm emits flat
+entity->asset graphs, so only the shared-driver signal fired (true chains need
+the LLM to emit intermediate links). A **chain-eliciting brainstorm prompt** was
+then added (`elicit_chains`) so the 32B emits both hops of indirect effects; a
+follow-up A/B tests whether genuine multi-hop chains help. Honest read so far:
+relational *breadth* (shared drivers) is already captured by the base graph, so
+Graph-RAG adds little on top.
+
 ### Operating points & deployment (`train/threshold.py`, `serving/ensemble.py`)
 AUROC is threshold-free; deployment needs an alert threshold. Walk-forward OOF
 operating points (1,110 days, 6.2% base rate) — honest about the precision ceiling:
