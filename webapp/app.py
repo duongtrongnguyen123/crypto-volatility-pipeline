@@ -172,40 +172,52 @@ with tab_live:
                 "[--backend 7b]` (cron once a day).")
 
     st.markdown("---")
-    st.subheader("📡 Live market monitor")
-    st.caption("Auto-refreshes from yfinance. This gauge is the **instant heuristic** "
-               "(MockLLM) for a fast 'now' read; the **Daily advisory** above is the "
-               "considered **32B/7B** daily call — they use different models/windows, "
-               "so expect them to differ. Deployment demo (live news unlabeled).")
+    st.subheader("📡 Live market monitor — giám sát & tóm tắt tin")
+    st.caption("**Descriptive, not a prediction.** This panel monitors + summarizes the "
+               "live news flow (recency-weighted) — it does NOT output a 3-day crash "
+               "probability. The crash **prediction** is the **Daily advisory** above "
+               "(daily cadence = the 3-day horizon). Deployment demo (live news unlabeled).")
     _interval = st.selectbox("Auto-refresh", [30, 60, 120, 300], index=1,
                              format_func=lambda s: f"every {s}s")
+    _stress_color = {"Cao": "#dc2626", "Tăng": "#d97706", "Thấp": "#16a34a"}
 
     @st.fragment(run_every=_interval)
     def _live_panel():
+        import datetime as _dt
+
         from webapp import live as _live
         try:
-            snap = _live.read_daemon_snapshot() or _live.live_snapshot(use_local_7b=False)
-            sig = snap["signal"]
+            res = _live.live_news_summary(use_local_7b=False)
+            sig = res["signals"]
+            prices, pmove = _live.fetch_live_prices()
+            now = _dt.datetime.now(_dt.timezone.utc).strftime("%H:%M:%S")
             st.markdown(
                 f"<span class='live-badge'><span class='live-dot'></span>LIVE</span> "
-                f"<span style='color:#64748b;font-size:0.82rem'>analysing news · "
-                f"auto-refresh {_interval}s · updated {sig['asof'][-8:]}</span>",
+                f"<span style='color:#64748b;font-size:0.82rem'>monitoring news · "
+                f"auto-refresh {_interval}s · updated {now} UTC</span>",
                 unsafe_allow_html=True)
-            c1, c2, c3 = st.columns([1, 1, 1])
-            with c1:
-                st.plotly_chart(gauge(sig["crash_prob"], "Live (heuristic, instant)"),
-                                width="stretch")
-            c2.metric("Portfolio move (1d)", f"{snap['portfolio_move']:+.2%}")
-            c2.metric("Live headlines", sig["n_news"])
-            c3.metric("Impact edges", sig["n_edges"])
-            c3.caption(f"{sig.get('backend','?')} · {sig['asof']}")
+            # rule-based extract -> summary
+            st.markdown(f"**📝 Tóm tắt tin (recency-weighted):** {res['summary']}")
+            col = _stress_color.get(sig["stress"], "#475569")
+            st.markdown(
+                f"Mức tin tiêu cực: <b style='color:{col}'>{sig['stress']}</b> "
+                f"<span style='color:#64748b'>(tỉ lệ neg {sig['neg_ratio']:.0%}; "
+                f"nguồn tóm tắt: {res['source']})</span>", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Portfolio move (1d)", f"{pmove:+.2%}")
+            c2.metric("Live headlines", res["n_headlines"])
+            c3.metric("Tin gần đây (≤6h)", sig["recent_count"])
+            if sig["top_tickers"]:
+                st.caption("Tâm điểm (recency-weighted): "
+                           + " · ".join(f"{t}" for t, _ in sig["top_tickers"]))
             pc = st.columns(6)
-            for i, (tk, row) in enumerate(snap["prices"].items()):
+            for i, (tk, row) in enumerate(prices.items()):
                 pc[i % 6].metric(tk, row["price"],
                                  f"{row['ret_1d']:+.2%}" if row["ret_1d"] is not None else "—")
-            with st.expander(f"Live headlines ({len(snap['headlines'])})"):
-                for h in snap["headlines"]:
-                    st.write(f"**[{h['ticker']}]** {h['title']}")
+            with st.expander("Tin mới nhất (salient, recency-weighted)"):
+                for it in sig["top_recent"]:
+                    tag = (it.assets[0] if it.assets else "—")
+                    st.write(f"**[{tag}]** {it.title}")
         except Exception as exc:  # noqa: BLE001
             st.warning(f"Live fetch unavailable (need internet / yfinance): {exc}")
 

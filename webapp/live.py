@@ -147,6 +147,105 @@ def fetch_live_prices(tickers=TICKERS):
 _LLM_CACHE = {}
 
 
+# --------------------------------------------------------------------------- #
+# Live news: rule-based signal extraction + (optional) LLM summary.
+# The live tab is DESCRIPTIVE (monitor + summarize), NOT a 3-day prediction —
+# the crash prediction is the daily advisory (correct horizon). Recent news is
+# weighted more (half-life decay) because the feed is real-time.
+# --------------------------------------------------------------------------- #
+def extract_news_signals(items, recent_hours: int = 6, half_life_h: float = 3.0):
+    """Rule-based extraction from live NewsItems, weighting RECENT news more.
+
+    Returns counts, recency-weighted negative/positive tallies, a descriptive
+    stress level, the most-mentioned tickers, and the top salient-recent
+    headlines — all derived by rules (no model), to feed the summarizer.
+    """
+    import re
+    from trr.select import _NEG, _POS
+    if not items:
+        return {"total": 0, "recent_count": 0, "neg": 0.0, "pos": 0.0,
+                "neg_ratio": 0.0, "stress": "Thấp", "top_tickers": [], "top_recent": []}
+    now = max(it.timestamp for it in items)
+
+    def age_h(it):
+        return max(0.0, (now - it.timestamp).total_seconds() / 3600.0)
+
+    def weight(it):
+        return 0.5 ** (age_h(it) / half_life_h)        # recency half-life
+
+    neg = pos = 0.0
+    tick: dict = {}
+    scored = []
+    for it in items:
+        toks = set(re.sub(r"[^a-z0-9 ]", " ", it.title.lower()).split())
+        n_neg, n_pos = len(toks & _NEG), len(toks & _POS)
+        w = weight(it)
+        neg += n_neg * w
+        pos += n_pos * w
+        for a in (it.assets or []):
+            a = a.split(":")[-1]                         # strip MACRO:/CRYPTO:
+            tick[a] = tick.get(a, 0.0) + w
+        scored.append((n_neg * 1.5 + n_pos + w, it))     # salience favours recent+neg
+    neg_ratio = neg / (neg + pos + 1e-9)
+    if neg_ratio >= 0.5 and neg >= 3:
+        stress = "Cao"
+    elif neg_ratio >= 0.3:
+        stress = "Tăng"
+    else:
+        stress = "Thấp"
+    scored.sort(key=lambda x: -x[0])
+    return {"total": len(items),
+            "recent_count": sum(1 for it in items if age_h(it) <= recent_hours),
+            "neg": round(neg, 1), "pos": round(pos, 1), "neg_ratio": round(neg_ratio, 2),
+            "stress": stress,
+            "top_tickers": sorted(tick.items(), key=lambda x: -x[1])[:5],
+            "top_recent": [it for _, it in scored[:8]]}
+
+
+def _template_summary(sig: dict) -> str:
+    tt = ", ".join(t for t, _ in sig["top_tickers"][:3]) or "—"
+    return (f"{sig['total']} tin (gần đây {sig['recent_count']}); "
+            f"mức tin tiêu cực: {sig['stress']} (tỉ lệ neg {sig['neg_ratio']:.0%}); "
+            f"tâm điểm: {tt}.")
+
+
+def summarize_live_news(items, use_local_7b: bool = False, recent_hours: int = 6):
+    """Extract rule-based signals, then summarise. With the local 7B it writes a
+    1–2 sentence prose summary from the EXTRACTED facts + most-recent headlines
+    (recency-focused); otherwise returns the deterministic rule-based template.
+    """
+    sig = extract_news_signals(items, recent_hours=recent_hours)
+    if not items:
+        return {"signals": sig, "summary": "Chưa có tin trực tiếp.", "source": "none"}
+    template = _template_summary(sig)
+    if not use_local_7b:
+        return {"signals": sig, "summary": template, "source": "rule-based"}
+    try:
+        llm, real = _get_llm(True)
+        if not real:
+            return {"signals": sig, "summary": template, "source": "rule-based"}
+        heads = "\n".join(f"- {it.title}" for it in sig["top_recent"])
+        prompt = (
+            "Tóm tắt NGẮN GỌN (1–2 câu tiếng Việt) tình hình tin tức tài chính hiện tại, "
+            "ƯU TIÊN các tin mới nhất. "
+            f"Dữ kiện: {sig['total']} tin, mức tiêu cực {sig['stress']}, "
+            f"tâm điểm {', '.join(t for t, _ in sig['top_tickers'][:3])}.\n"
+            f"Tin gần đây nhất:\n{heads}\nTóm tắt:")
+        out = llm.generate(prompt, max_new_tokens=120).strip()
+        return {"signals": sig, "summary": out or template, "source": "7B"}
+    except Exception:  # noqa: BLE001
+        return {"signals": sig, "summary": template, "source": "rule-based"}
+
+
+def live_news_summary(use_local_7b: bool = False):
+    """Fetch the current display feed (with timestamps) and summarise it."""
+    heads = fetch_live_headlines(FEED_TICKERS, max_per=8, include_macro=True,
+                                 include_crypto=True, include_world=True)
+    res = summarize_live_news(heads, use_local_7b=use_local_7b)
+    res["n_headlines"] = len(heads)
+    return res
+
+
 def _get_llm(use_local_7b: bool):
     """MockLLM (instant) or the local Qwen2.5-7B-AWQ on the 2060 (cached)."""
     if not use_local_7b:
