@@ -169,6 +169,69 @@ def run_live_window(items, use_local_7b: bool = False):
     }
 
 
+def compose_advisory(sig: dict) -> dict:
+    """Turn a raw TRR signal into a structured DAILY ADVISORY: risk level, the
+    most-exposed assets, the key driving events, and cautions — actionable
+    analysis, not just a probability. (Research output, not financial advice.)
+    """
+    prob = sig.get("crash_prob", 0.0)
+    level = "HIGH" if prob >= 0.6 else "ELEVATED" if prob >= 0.3 else "LOW"
+    edges = sig.get("edges", [])
+    # per-asset exposure: summed negative-edge weight pointing at each ticker
+    risk = {t: 0.0 for t in TICKERS}
+    for e in edges:
+        if e["object"] in risk and e["polarity"] < 0:
+            risk[e["object"]] += e["weight"]
+    at_risk = sorted([(t, w) for t, w in risk.items() if w > 0],
+                     key=lambda x: -x[1])[:3]
+    # top driving events = strongest negative edges
+    drivers = sorted([e for e in edges if e["polarity"] < 0],
+                     key=lambda e: -e["weight"])[:3]
+    cautions = []
+    if level != "LOW":
+        if at_risk:
+            cautions.append("Elevated downside concentrated in "
+                            + ", ".join(f"{t}" for t, _ in at_risk)
+                            + " — monitor exposure there first.")
+        if drivers:
+            d = drivers[0]
+            cautions.append(f"Primary driver: {d['subject']} → {d['object']} "
+                            "(negative). Watch for follow-through / contagion.")
+        cautions.append("Consider risk-reduction sizing if the signal persists "
+                        "over consecutive days (3-day horizon).")
+    else:
+        cautions.append("No systemic stress detected; routine monitoring.")
+    return {
+        "risk_level": level,
+        "crash_prob": prob,
+        "horizon": "next ~3 trading days",
+        "at_risk_assets": [{"ticker": t, "exposure": round(w, 2)} for t, w in at_risk],
+        "top_drivers": drivers,
+        "cautions": cautions,
+        "rationale": sig.get("rationale", ""),
+        "backend": sig.get("backend", "?"),
+        "asof": sig.get("asof"),
+        "disclaimer": "Research/analysis output — NOT financial advice.",
+    }
+
+
+def daily_report(use_local_7b: bool = False, use_rag: bool = True) -> dict:
+    """Build today's advisory report from current news and save it for the web."""
+    import json
+    import os
+    heads = fetch_live_headlines()
+    sig = run_live(heads, use_local_7b=use_local_7b, use_rag=use_rag)
+    prices, port_move = fetch_live_prices()
+    adv = compose_advisory(sig)
+    adv["portfolio_move_1d"] = port_move
+    adv["prices"] = prices
+    adv["n_headlines"] = len(heads)
+    os.makedirs("data/live", exist_ok=True)
+    with open("data/live/daily_report.json", "w") as f:
+        json.dump(adv, f, indent=2)
+    return adv
+
+
 def read_daemon_snapshot(max_age_s: int = 300):
     """If scripts.live_daemon is running, return its latest signal+prices snapshot
     (so the heavy 7B can run continuously in the daemon and the UI just displays

@@ -183,6 +183,36 @@ if st.button("↻ Run once with local Qwen-7B (real LLM on the 2060, ~1–3 min)
             st.warning(f"7B run failed: {exc}")
 st.markdown("---")
 
+st.header("📋 Daily advisory")
+st.caption("The feasible product: a once-a-day TRR analysis (run on Kaggle 32B or "
+           "local 7B) — risk level, most-exposed assets, key drivers, cautions. "
+           "Research/analysis, not financial advice.")
+_dr_path = os.path.join(_REPO_ROOT, "data", "live", "daily_report.json")
+if os.path.exists(_dr_path):
+    import json as _json
+    adv = _json.load(open(_dr_path))
+    _c = {"HIGH": "#dc2626", "ELEVATED": "#d97706", "LOW": "#16a34a"}.get(adv["risk_level"], "#666")
+    st.markdown(f"### Risk: <span style='color:{_c}'>{adv['risk_level']}</span> "
+                f"· crash prob {adv['crash_prob']:.0%} · {adv.get('horizon','')}",
+                unsafe_allow_html=True)
+    st.caption(f"as of {adv.get('asof','?')} · backend {adv.get('backend','?')} · "
+               f"{adv.get('n_headlines','?')} headlines")
+    if adv.get("at_risk_assets"):
+        st.write("**Most exposed:** " + ", ".join(
+            f"{a['ticker']} ({a['exposure']})" for a in adv["at_risk_assets"]))
+    if adv.get("top_drivers"):
+        st.write("**Key drivers:** " + "; ".join(
+            f"{d['subject']}→{d['object']}" for d in adv["top_drivers"]))
+    for c in adv.get("cautions", []):
+        st.write(f"- {c}")
+    if adv.get("rationale"):
+        st.caption("Rationale: " + str(adv["rationale"])[:300])
+    st.caption(adv.get("disclaimer", ""))
+else:
+    st.info("No daily report yet — run `.venv/bin/python -m scripts.daily_report "
+            "[--backend 7b]` (cron it once a day).")
+st.markdown("---")
+
 st.header("📊 Historical backtest (labeled evaluation)")
 st.caption(f"This section is NOT live — it replays a past run ({run['label']}, "
            f"`out_{run['slug']}`) with KNOWN outcomes so we can score it (AUROC "

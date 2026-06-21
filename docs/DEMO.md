@@ -105,3 +105,12 @@ headlines arrive; the webapp auto-displays its latest signal:
 Retention is in MINUTES (`--retain-min`, default 10080 = 7 days). Do NOT set it to
 a few minutes — TRR's temporal memory needs ~5 trading days; short retention
 discards the multi-day signal.
+
+## Daily advisory (the feasible cadence)
+Run once a day (cron / scheduler) — produces a structured advisory the web shows:
+```bash
+.venv/bin/python -m scripts.daily_report --backend 7b    # local Qwen-7B + live-RAG
+# or on Kaggle (32B, best): run the stock kernel daily, download eval -> same JSON shape
+```
+Output: data/live/daily_report.json (risk level, most-exposed assets, key drivers,
+cautions, rationale). Daily matches the 3-day horizon; minute-level is not feasible.
