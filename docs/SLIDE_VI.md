@@ -3,13 +3,21 @@
 ## Dùng cho AI tạo slide. Mỗi slide gồm 4 phần:
 **① Tiêu đề · ② Nội dung (gạch đầu dòng) · ③ 🎨 Hình ảnh (đặc tả/PROMPT) · ④ 🎤 Ghi chú thuyết trình**
 
-> HƯỚNG DẪN CHUNG CHO AI TẠO SLIDE
-> - Bố cục 16:9, nền sáng, phông chữ sans-serif (Inter/Roboto), tiêu đề ~32–40pt, nội dung ~20–24pt.
-> - Màu nhấn: **xanh lá #16a34a**; cảnh báo/crash: **đỏ #dc2626**; trung tính: xám #475569.
+> HƯỚNG DẪN CHUNG CHO AI TẠO SLIDE (đã chốt)
+> - Bố cục 16:9, nền sáng (#ffffff / #f8fafc).
+> - **Phông chữ: tiêu đề = Montserrat SemiBold (~34–40pt); nội dung = Inter Regular (~20–24pt).**
+> - Màu nhấn: **xanh lá #16a34a**; cảnh báo/crash: **đỏ #dc2626**; trung tính: xám #475569; nền chart: #f1f5f9.
 > - Mỗi slide tối đa 5–6 gạch đầu dòng; ưu tiên 1 hình lớn bên phải, chữ bên trái.
-> - Phần 🎨 ghi rõ: loại biểu đồ + trục + số liệu (để vẽ chart), hoặc PROMPT mô tả bố cục (để vẽ sơ đồ/ảnh).
-> - Chỗ 「điền sau」 = kết quả đang chạy; để placeholder, đừng bịa số.
+> - **BIỂU ĐỒ: vẽ chart THẬT bằng đúng số liệu cho sẵn** (không placeholder), ghi nhãn giá trị trên cột/điểm.
+> - **SƠ ĐỒ: vẽ SẠCH bằng khối bo góc + đường nối đơn sắc, KHÔNG dùng emoji trong slide render.**
+>   Dùng icon line đơn sắc hoặc nhãn chữ thay cho emoji. (Các emoji trong phần 🎨 bên dưới CHỈ là gợi ý loại icon, đừng vẽ emoji vào slide.)
+> - Chỗ 「điền sau」 = kết quả đang chạy → **giữ placeholder rõ ràng** (ô nền vàng nhạt + chữ "đang chạy"), đừng bịa số.
 > - Đơn vị số theo chuẩn VN (dấu phẩy thập phân) như trong nội dung.
+>
+> ⏱️ LỘ TRÌNH ~10 PHÚT (12 slide lõi · 6 slide lướt/dự phòng)
+> - **Lõi (trình kỹ, ~45–60s/slide):** 1 (bìa, 20s) · 2 (vấn đề) · 3 (bài toán) · 5 (4 pha) · 6 (RAG) · 8 (4 chữ V) · 9 (lưu trữ) · 10 (Spark) · 11 (Kaggle) · 14 (kết quả) · 16 (trung thực) · 17 (kết luận).
+> - **Lướt nhanh (~15–20s, hoặc bỏ nếu thiếu giờ):** 4 (ý tưởng — gộp vào slide 5) · 7 (dữ liệu — gộp vào slide 8) · 12 (triển khai) · 13 (hiển thị≠dự đoán) · 15 (số 「điền sau」 — chỉ mở nếu đã có số) · 18 (Q&A).
+> - Tổng ước tính: 12 × ~48s + 6 × ~18s ≈ **~10 phút**. Nếu dư giờ, mở thêm slide lướt; nếu thiếu, bỏ 4/7/15.
 
 ---
 
