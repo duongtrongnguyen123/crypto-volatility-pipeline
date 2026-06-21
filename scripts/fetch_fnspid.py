@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import sys
 
+import os
+
 import pandas as pd
 
 TICKERS = set(os.environ.get(
@@ -16,7 +18,6 @@ TICKERS = set(os.environ.get(
 MIN_YEAR = int(os.environ.get("FNSPID_MIN_YEAR", "2016"))
 OUT = os.environ.get("FNSPID_OUT", "data/fnspid/stocknews.csv")
 
-import os
 os.makedirs(os.path.dirname(OUT) or ".", exist_ok=True)
 
 kept = 0
