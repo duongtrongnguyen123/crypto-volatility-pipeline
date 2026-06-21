@@ -55,6 +55,14 @@ st.markdown(
       .stButton>button:hover { background:#15803d; border-color:#15803d; }
       a { color:#15803d; }
       hr { border-color:#e2e8f0; }
+      /* SMOOTH auto-refresh: never dim/blur stale content on rerun */
+      [data-stale="true"], [data-stale="true"] * {
+        opacity: 1 !important; filter: none !important; transition: none !important; }
+      [data-testid="stStatusWidget"] { display: none !important; }   /* hide 'Running…' */
+      .stSpinner { display: none !important; }
+      /* live content eases in instead of flashing */
+      [data-testid="stMetric"], .stPlotlyChart { transition: opacity .5s ease; }
+      @keyframes fadein { from { opacity: .55; } to { opacity: 1; } }
     </style>""", unsafe_allow_html=True)
 
 _RISK_COLOR = {"HIGH": "#dc2626", "ELEVATED": "#d97706", "LOW": "#16a34a"}
@@ -223,7 +231,8 @@ with tab_live:
                          "padding:0 5px;font-size:0.66rem'>🆕</span> " if isnew and prev else "")
                 t = h.timestamp.strftime("%m-%d %H:%M")
                 st.markdown(
-                    f"<div style='padding:3px 0;border-bottom:1px solid #eef'>"
+                    f"<div style='padding:3px 0;border-bottom:1px solid #eef;"
+                    f"animation:fadein .5s ease'>"
                     f"<span style='color:#94a3b8;font-size:0.76rem'>{t}</span> "
                     f"<span style='background:{'#fef3c7' if macro else '#eef2ff'};"
                     f"color:{'#b45309' if macro else '#3730a3'};border-radius:6px;"
