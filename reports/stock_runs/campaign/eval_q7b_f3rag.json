@@ -1,0 +1,21 @@
+{
+  "crash": {
+    "summary": {
+      "target": "crash",
+      "n_days": 184,
+      "n_pos_days": 11,
+      "base_rate": 0.059782608695652176,
+      "date_start": "2022-07-01",
+      "date_end": "2022-12-31"
+    },
+    "metrics": {
+      "TRR": {
+        "auroc": 0.41802417235943246,
+        "pr_auc": 0.05497364953886692
+      },
+      "news_volume": {
+        "auroc": 0.6939043615344194
+      }
+    }
+  }
+}

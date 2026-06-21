@@ -409,6 +409,26 @@ windows — broad +0.074 CI [+0.014,+0.136] (p=0.009) and bear +0.065 CI
 [-0.012,+0.128], 14 events). So RAG's benefit is real where there are enough
 crash events to measure it; the small-sample COVID window can't confirm it alone.
 
+### 7B vs 32B + RAG — the local-deployment story (parallel batch)
+Same kernels with the **Qwen2.5-7B** attached instead of the 32B, baseline vs RAG,
+on 4 crash-heavy windows (s6 2018H2, s9 COVID, f2 2022H1, f3 2022H2; pooled 663
+days, 65 crashes):
+
+| Model | baseline | + RAG |
+|---|---|---|
+| 7B | 0.525 | **0.583** (+0.058) |
+| 32B | 0.570 | **0.602** (+0.032) |
+
+- **RAG helps both models**, and helps the *7B more* (+0.058 vs +0.032).
+- **RAG lifts the 7B to ≈ the 32B baseline** (0.583 vs 0.570) — case-based
+  retrieval closes most of the small→large gap. Strong deployment result: a cheap
+  ~8GB-class model + RAG approaches the 32B.
+- **32B + RAG remains best** (0.602). The 32B stays the offline quality predictor.
+- Per-window the 7B+RAG is higher-variance (COVID 0.649→0.795, 2018H2
+  0.496→0.630, but 2022H1 0.517→0.439) — net-positive pooled, less reliable than
+  the 32B's consistent RAG gain. So: **RAG with 7B = yes for local deployment**,
+  but the 32B is still the trustworthy batch predictor.
+
 ### Does TRAINING help? (meta-learner, `train/`)
 Out-of-time / cross-source (train 2016-2020 analyst news -> test 2021-2023 FNSPID):
 
