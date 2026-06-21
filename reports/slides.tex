@@ -318,19 +318,19 @@
 \begin{frame}{ROC Curves}
   \begin{figure}
     \centering
-    \includegraphics[width=0.6\linewidth]{figures/fig11_roc_curve.png}
+    \includegraphics[width=0.45\linewidth]{figures/fig11_roc_curve.png}
     \caption{ROC curves for selected models. TRR ensemble dominates across all thresholds.}
   \end{figure}
 \end{frame}
 
 \begin{frame}{Calibration Analysis}
   \begin{columns}[t]
-    \column{0.55\textwidth}
+    \column{0.5\textwidth}
     \begin{figure}
       \centering
-      \includegraphics[width=\linewidth]{figures/fig3_calibration.png}
+      \includegraphics[width=0.75\linewidth]{figures/fig3_calibration.png}
     \end{figure}
-    \column{0.45\textwidth}
+    \column{0.5\textwidth}
     \textbf{Key Findings}
     \begin{itemize}
       \item TRR 32B: overconfident at high probabilities
@@ -338,7 +338,7 @@
       \item Brier score improves from 0.210 to 0.182 after scaling
       \item \textbf{Brier Skill Score:} 0.12 vs base rate
     \end{itemize}
-    \bigskip
+    \vspace{0.3cm}
     \textbf{Calibration Metrics:}
     \begin{table}
       \small
@@ -371,12 +371,12 @@
 % =========================================================================
 \begin{frame}{Per-Asset Predictive Power}
   \begin{columns}[t]
-    \column{0.55\textwidth}
+    \column{0.52\textwidth}
     \begin{figure}
       \centering
-      \includegraphics[width=\linewidth]{figures/fig7_per_asset.png}
+      \includegraphics[width=0.7\linewidth]{figures/fig7_per_asset.png}
     \end{figure}
-    \column{0.45\textwidth}
+    \column{0.48\textwidth}
     \textbf{Observations}
     \begin{itemize}
       \item \textbf{BTC:} Highest AUROC (0.62) — most news coverage
@@ -385,7 +385,7 @@
       \item \textbf{DOGE:} No signal (0.50) — meme-driven, not news-driven
       \item Portfolio-level: 0.566 (diversification helps)
     \end{itemize}
-    \bigskip
+    \vspace{0.3cm}
     \textbf{PR-AUC:}
     \begin{itemize}
       \item Rare event (9.7\%) $\to$ PR-AUC is more informative
@@ -458,7 +458,7 @@
 \begin{frame}{Incremental Value — TRR vs Price Momentum}
   \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/fig9_incremental_value.png}
+    \includegraphics[width=0.5\linewidth]{figures/fig9_incremental_value.png}
     \caption{TRR adds $+8.8\%$ AUROC improvement over price-only baseline.}
   \end{figure}
   
@@ -476,7 +476,7 @@
 \begin{frame}{Ensemble Methods Comparison}
   \begin{figure}
     \centering
-    \includegraphics[width=0.85\linewidth]{figures/fig15_ensemble_methods.png}
+    \includegraphics[width=0.5\linewidth]{figures/fig15_ensemble_methods.png}
     \caption{Full ensemble with Fear\&Greed achieves best AUROC (0.653) and PR-AUC (0.185).}
   \end{figure}
   
@@ -511,25 +511,30 @@
 % =========================================================================
 % SLIDE: LSTM RESULTS
 % =========================================================================
-\begin{frame}{LSTM Volatility Model — Results}
+\begin{frame}{LSTM Volatility Model — Predictions}
   \begin{columns}[t]
     \column{0.5\textwidth}
-    \textbf{Real LSTM Evaluation Data}
     \begin{figure}
       \centering
-      \includegraphics[width=\linewidth]{figures/fig17_pred_vs_actual.png}
+      \includegraphics[width=0.95\linewidth]{pred_vs_actual.png}
       \caption{LSTM predictions vs actual 5-min volatility (test set)}
     \end{figure}
+    \column{0.5\textwidth}
     \begin{figure}
       \centering
-      \includegraphics[width=0.8\linewidth]{figures/fig18_scatter.png}
+      \includegraphics[width=0.7\linewidth]{scatter.png}
       \caption{Predicted vs actual scatter (R² = 0.517)}
     \end{figure}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{LSTM Volatility Model — Performance}
+  \begin{columns}[t]
     \column{0.5\textwidth}
     \textbf{Test Set Performance}
     \begin{table}
       \centering
-      \small
+      \footnotesize
       \begin{tabular}{lcccc}
         \toprule
         Model & R² & RMSE & MAE & Dir. Acc. \\
@@ -542,6 +547,7 @@
         \bottomrule
       \end{tabular}
     \end{table}
+    \column{0.5\textwidth}
     \textbf{Observations}
     \begin{itemize}
       \item LSTM matches EWMA — high volatility autocorrelation
@@ -550,7 +556,8 @@
       \item EWMA still strong baseline (volatility is persistent)
       \item \textbf{Real edge:} combined TRR + LSTM for crash + volatility
     \end{itemize}
-    \textbf{Training details:}
+    \vspace{0.3cm}
+    \textbf{Training:}
     \begin{itemize}
       \item 441,465 sequences (24 steps $\times$ 5-min)
       \item Test: 66,219 windows (15\%)
@@ -567,7 +574,7 @@
 \begin{frame}{Economic Backtest — TRR Strategy vs Buy \& Hold}
   \begin{figure}
     \centering
-    \includegraphics[width=0.85\linewidth]{figures/fig16_backtest_equity.png}
+    \includegraphics[width=0.85\linewidth]{backtest_equity.png}
     \caption{Real LSTM backtest: equity curve from simulated trading}
   \end{figure}
   
@@ -577,12 +584,12 @@
 \begin{frame}{Risk-Adjusted Performance Metrics}
   \begin{figure}
     \centering
-    \includegraphics[width=0.85\linewidth]{figures/fig14_sharpe_drawdown.png}
+    \includegraphics[width=0.7\linewidth]{figures/fig14_sharpe_drawdown.png}
   \end{figure}
   
   \begin{table}
     \centering
-    \small
+    \footnotesize
     \begin{tabular}{lcccc}
       \toprule
       Strategy & Total Return & Sharpe & Max DD & Win Rate \\
