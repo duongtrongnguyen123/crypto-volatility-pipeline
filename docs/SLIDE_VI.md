@@ -161,7 +161,7 @@
 
 ### SLIDE 18 — Q&A / Cảm ơn
 - **Cảm ơn thầy/cô và các bạn đã lắng nghe!**
-- Liên hệ / mã nguồn: [LINK GITHUB]
+- Liên hệ / mã nguồn: https://github.com/duongtrongnguyen123/bigdata-stock-crash-trr
 - *Hình ảnh:* logo nhóm + ảnh kiến trúc thu nhỏ.
 - *Ghi chú — câu hỏi hay gặp & trả lời nhanh:*
   - "HDFS/Spark cluster đâu?" → có Spark (pseudo-distributed, code sẵn cho cluster) + 20 GPU Kaggle; điểm nghẽn là LLM nên ưu tiên phân tán suy luận.

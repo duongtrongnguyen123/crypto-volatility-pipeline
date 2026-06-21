@@ -1,377 +1,103 @@
-# Temporal Relational Reasoning of LLMs for Crypto Crash Prediction
+# Temporal Relational Reasoning of Large Language Models for Stock Price Prediction
 
-**Big Data course project.** The headline task: use a Large Language Model to
-predict crypto market **crashes** by reasoning over the **temporal** and
-**relational** patterns in financial **news** — a crypto adaptation of
-*"Temporal Relational Reasoning of Large Language Models for Detecting Stock
-Portfolio Crashes"* ([arXiv:2410.17266](https://arxiv.org/abs/2410.17266)).
+**Big Data course project** — adapted from [arXiv:2410.17266](https://arxiv.org/abs/2410.17266).
 
-The LLM reasoner (zero-shot **NVIDIA Nemotron** on a Kaggle RTX 6000 Pro GPU) is
-the star; a full **real-time Big Data pipeline** (Kafka + Spark Structured
-Streaming) and a **PyTorch LSTM** volatility model serve as the supporting
-infrastructure and the **quantitative baselines** the LLM is benchmarked against.
+A **zero-shot LLM** reads financial **news** and predicts the probability that an
+equal-weight portfolio of large-cap stocks **crashes** (≥ 6% drop) over the next
+~3 trading days. The model is **never trained** — it *reasons*, in four phases:
 
-| Part | What it does | Where |
-|---|---|---|
-| **TRR** (the assignment) | LLM reads news → builds an impact graph → reasons over time → predicts portfolio crashes | `trr/`, `kaggle/trr_kernel.py` |
-| Real-time pipeline | Binance + news → Kafka → Spark 5-min features → Parquet | `ingestion/`, `processing/` |
-| LSTM + baselines | volatility regression; persistence/EWMA/price baselines | `ml/` |
+> **Brainstorm** (news → impact graph) → **Memory** (time-decay) → **Attention** (PageRank prune) → **Reason** (LLM → crash probability)
 
-Everything runs locally — no cloud required for the pipeline; the GPU LLM run
-uses Kaggle. Read on: **TRR first**, then the volatility pipeline.
+The narrowing from "price prediction" (the paper's title) to **crash / tail-risk
+prediction** is deliberate: direction and raw price are ≈ chance under weak-form
+market efficiency, while crash risk carries a real signal from news.
+
+📄 **Báo cáo & slide tiếng Việt:** [`docs/BAO_CAO_VI.md`](docs/BAO_CAO_VI.md) · [`docs/SLIDE_VI.md`](docs/SLIDE_VI.md)
+📊 **Kết quả chi tiết:** [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md)
 
 ---
 
-## Full deliverable map
+## Why this is a Big Data project
 
-**Reproduce the whole analysis (no GPU/Kaggle needed):** `bash scripts/run_all.sh`
-— runs training → ablations → threshold → backtest → figures → 61 tests.
-
-| Component | What | Run |
+| V | What we do | Numbers |
 |---|---|---|
-| **TRR pipeline** (`trr/`) | zero-shot LLM crash prediction (4 phases + causal RAG) | see below |
-| **Kaggle kernels** (`kaggle/`) | Qwen2.5-32B on RTX 6000 Pro; multi-account scale-out | `kaggle/*.py` |
-| **Training** (`train/`) | meta-learner (LLM + technicals), ablations, economic backtest | `.venv/bin/python -m train.run` |
-| **Serving** (`serving/`) | FastAPI live `/predict` + `/backtest` (real TRR pipeline) | `.venv/bin/uvicorn serving.api:app --port 8000` |
-| **Web platform** (`webapp/`) | Streamlit: crash gauge, live impact-graph, timeline, campaign | `.venv/bin/streamlit run webapp/app.py` |
-| **Streaming** (`ingestion/`,`processing/`) | Kafka producers + Spark consumers (speed layer) | `processing/consumer_trr.py` |
-| **Docs** (`docs/`) | architecture (Mermaid), full report, slides | — |
-| **Results** (`reports/`) | `RESULTS_TRR.md` (master) + training/ablation/backtest | — |
+| **Volume** | stream-filter a 23 GB / 15.7M-article source → 2016–2023 corpus | **12 GB / 4.5M articles** |
+| **Velocity** | live news daemon + Spark Structured Streaming | ~500 news/day, 60 s poll |
+| **Variety** | company / macro / crypto / world news + OHLCV prices, multi-source | FNSPID + RSS + yfinance |
+| **Value** | deployed crash-advisory web app + FastAPI | Streamlit + REST |
 
-## Headline results (zero-shot Qwen2.5-32B, crash AUROC unless noted)
+**Storage — "store enormous, serve tiny":** 12 GB corpus → date-indexed **SQLite**
+(1.9 GB, ~44 ms/day lookup) → RAG-selected slice (~2 MB) served to the LLM.
 
-| Experiment | Result |
-|---|---|
-| Stock COVID crash | 0.785 (**+RAG 0.847**) |
-| Stock 2016–2020 pooled (9 shards) | 0.710 |
-| Crypto 2022–23 | 0.530 (+RAG 0.542) |
-| FNSPID 2021–23 bear market | 0.550 (> news-volume 0.491) |
-| Training (within-source) | full ensemble +0.03–0.08 over technicals; LLM adds value |
-| Economic backtest | de-risk **+205% / −45% DD / 0.97 Sharpe** vs buy&hold +161% / −50% / 0.80 |
-| Calibration / alerting | isotonic Brier 0.139→0.073; **P@10 = 0.20 (3.2× base)** |
-| Direction / raw price | ~chance (EMH) — tail-risk is the feasible target |
-
-Full analysis + honest negatives in [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md);
-architecture & report in [`docs/`](docs/).
-
-## Daily deployment (live advisory)
-
-Daily cadence matches the 3-day horizon (minute-level isn't feasible). A cron at
-**05:00 ICT** (just after the US close) produces a structured **daily advisory**
-— risk level, most-exposed assets, key drivers, cautions — shown in the web:
-
-```
-scripts/daily_cron.sh   # cron: 0 5 * * *
-  ├─ scripts/daily_kaggle.py   → 32B on Kaggle (validated model)   [preferred]
-  ├─ scripts/daily_report.py --backend 7b → local Qwen-7B-AWQ + RAG [fallback]
-  └─ scripts/daily_report.py --backend mock                         [last resort]
-```
-
-It fetches **company + macro news** (yfinance, incl. `^GSPC/^IXIC/^VIX/^TNX` for
-Fed/rates/VIX/geopolitics — the corpus is otherwise macro-light), runs TRR, and
-writes `data/live/daily_report.json`. The webapp **Live tab** shows the advisory,
-a crash gauge, an auto-updating **news feed** (company + macro), and a "Try it"
-box (type a headline → live impact graph + crash prob). Heavy 32B = offline
-quality; local 7B = live deployment. Live news is unlabeled → it proves
-*deployment*, not accuracy (rigorous AUROC is the labeled backtests).
+**Distributed processing:**
+- **Apache Spark** batch ETL: 12 GB corpus → **Parquet partitioned by year** (data-lake layout); 12 GB→718 MB in 101 s; queries read 4.5M rows in 2.4 s (~40×, partition-pruned). Same code runs on a cluster via `SPARK_MASTER=spark://…`.
+- **20 Kaggle GPUs**: the 32B LLM backtest fans out to **40 shards** (20 base + 20 RAG) across 20 accounts × 2 notebooks — one ~20-minute wave instead of ~5 h.
 
 ---
 
-## TRR — LLM crash prediction (`trr/`)
+## Method (TRR, `trr/`)
 
-The **TRR** framework is **zero-shot** — the LLM is never trained; it reasons.
-Four phases (`trr/`), run per day over a stream of news:
+1. **Brainstorm** (`brainstorm.py`) — LLM turns each day's news into a directed **impact graph** (signed, weighted edges: news → entities → portfolio assets).
+2. **Memory** (`memory.py`) — decaying store `R = exp(−t·λ)` carries the **temporal** signal across days (bad news fades over time).
+3. **Attention** (`attention.py`) — PageRank-style prune to the top-*k* portfolio-relevant **relational** sub-graph.
+4. **Reason** (`reason.py`) — LLM predicts crash probability from the pruned tuples.
 
-1. **Brainstorming** (`brainstorm.py`) — the LLM turns each news item into a
-   directed **impact graph** `G=(Z,A)`: news → entities → portfolio assets, as
-   chains of signed, weighted impacts.
-2. **Memory** (`memory.py`) — a decaying store of past impacts,
-   `R = exp(−t·λ)`, carries the **temporal** signal across days.
-3. **Attention** (`attention.py`) — a PageRank-style ranking biased toward the
-   portfolio prunes to the most relevant **relational** sub-graph.
-4. **Reasoning** (`reason.py`) — the LLM predicts crash probability from the
-   pruned `(time, subject, polarity, object)` tuples.
+**RAG** (`rag.py`, `corpus.py`, `select.py`) — two roles, both bound LLM cost to `O(days·k)`:
+- *Retrieval-selection*: pick the *k* most portfolio-relevant headlines per day from the corpus.
+- *Case-based few-shot* (causal lookback bank): retrieve similar **past labeled days** + their realized outcomes into the reasoning prompt.
 
-**Portfolio:** BTC, ETH, SOL, BNB, AVAX, DOGE (the relational universe).
-**Ground truth** (`trr/labels.py`): a day is a *crash* if the equal-weight
-portfolio's forward 3-day return breaches −8%. On the real 2022–2026 data this
-cleanly surfaces the **LUNA/Terra (May 2022)** and **FTX (Nov 2022)** collapses
-(9.7% of days — rare, hence AUROC for evaluation).
+**Models:** Qwen2.5-**32B** on Kaggle RTX 6000 Pro (offline batch) · Qwen2.5-**7B-AWQ** local on RTX 2060 SUPER (live). The pipeline code is identical for both and for the deterministic `MockLLM` used in tests.
 
-**Backends** (`trr/llm.py`, interchangeable): `MockLLM` (deterministic, for
-offline pipeline tests) and `HFReasoningLLM` (a local HuggingFace causal LM —
-Nemotron — run zero-shot on the GPU). The pipeline code is identical either way.
+**Portfolio:** AAPL, AMZN, GOOGL, NVDA, TSLA, NFLX. **Labels** (`prices`/`targets`): a day is a *crash* if the equal-weight portfolio's forward 3-day low breaches −6%.
 
-```bash
-make trr-labels   # show the crash labels (FTX/LUNA appear as worst drawdowns)
-make trr-eval     # run the full pipeline (MockLLM) + AUROC vs baselines
-make trr-deploy   # zero-shot Nemotron run on the Kaggle RTX 6000 Pro
-```
+---
 
-`make trr-eval` reports AUROC / PR-AUC / F1 for TRR against three baselines —
-`base_rate`, `news_negativity` (naive negative-headline counting), and
-`price_momentum` (price-only, no news) — and saves an ROC curve + a crash-prob
-timeline to `reports/`. The MockLLM is lexicon-based so it only validates the
-*harness*; the relational + temporal **reasoning lift comes from Nemotron** on
-the GPU run (see `kaggle/TRR_README.md`). No news data is bundled beyond a
-synthetic demo corpus (`trr/sample_news.jsonl`, aligned to the real crash
-windows) — point `trr.news.load_news` at a real Kaggle crypto-news dataset for
-the full run.
-
-### Results (full study in [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md))
-
-Real GPU runs (Qwen2.5-14B/32B on Kaggle RTX 6000 Pro) over 2022–2024 crypto news:
+## Headline results (crash AUROC)
 
 | Setup | AUROC |
-|---|---:|
-| Zero-shot (no few-shot) | 0.505 (chance) |
-| **News reasoning, 32B few-shot (2022–23)** | **0.566** |
-| News reasoning, 32B few-shot (2024, new regime) | 0.580 |
-| News reasoning, 14B (2024) | 0.376 (not robust) |
-| **+ Fear & Greed sentiment ensemble** | **0.653** |
-| Social-post (Reddit) reasoning | 0.475–0.489 (no help) |
+|---|---|
+| Stock COVID crash window | **0.785** (+RAG **0.847**) |
+| Stock broad 2016–2020 | **0.710** |
+| RAG lift (large-N) | **+0.074 (p = 0.009)** |
+| news-volume baseline | ≈ 0.50 (signal comes from reasoning, not headline counts) |
+| Full corpus 2016–2023 (portfolio-filtered) | *(running — see report)* |
 
-**Findings:** few-shot is the key lever (0.50→0.57); news reasoning generalizes
-across regimes *at 32B scale* but not 14B; aggregate sentiment helps (though
-regime-dependent); reasoning over noisy social posts does not. All beat the
-price/lexicon/base-rate baselines (≤0.55).
-
-**Rigorous eval** (`make trr-analyze`) — bootstrap CIs, leak-free ensemble,
-calibration, precision@K, and an economic backtest. Honest corrections: the
-0.653 ensemble was an in-sample-fit artifact (**0.577 leak-free**), and the
-news-AUROC isn't statistically separable from price-momentum (small N). **But
-the strongest result is economic:** a de-risk-on-high-crash-prob strategy beats
-buy-and-hold on **return and drawdown in both regimes** — 2022–23 bear −39%→**+4%**
-(maxDD −75%→−62%), 2024 bull +22%→**+32%**. See
-[`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md).
+**Honest notes:** small-N is the real ceiling (14–82 crash days, ~4% base rate);
+direction/raw price ≈ chance (weak-form EMH); naively scaling to an *all-ticker*
+corpus with crash-query selection **hurt** (relevance ≠ portfolio-relevance) and
+was fixed by portfolio filtering. Full study + negatives in [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md).
 
 ---
 
-## Supporting infrastructure — real-time volatility pipeline
-
-End-to-end Big Data pipeline that predicts short-term BTC/USDT **volatility**. It
-trains **offline** on 4+ years of historical 5-minute market data, and serves
-**live**: streaming Binance trades + futures + order book + liquidations + news
-through Kafka and Spark Structured Streaming, scoring news sentiment with
-FinBERT, and feeding the latest feature window to a PyTorch LSTM. This doubles as
-the **quantitative baseline** the TRR LLM is compared against.
-
-GPU (RTX 2060 Super) is used automatically for FinBERT scoring and LSTM training
-when available.
-
-## Train offline, serve live
-
-The model is trained on a rich historical dataset and then deployed against the
-live stream, which reproduces the **same 11-feature schema** in real time:
+## Repo map
 
 ```
-OFFLINE (training)
-  historical 5-min CSVs ─► ml/historical.py ─► 11-feature matrix + target
-                                              ─► ml/train.py ─► models/lstm_volatility.pt
-
-LIVE (serving)
-  Binance aggTrade  WS ─► crypto-price ────► consumer_price ──► features-price ─┐
-  CryptoPanic news     ─► crypto-news  ────► consumer_sentiment ► features-sentiment ┤
-  Binance OI/funding REST► crypto-futures ───────────────────────────────────────┤  feature_join
-  Binance depth     WS ─► crypto-depth ──────────────────────────────────────────┤  (5-min join)
-  Binance forceOrder WS─► crypto-liquidations ────────────────────────────────────┘     │
-                                                                                        ▼
-                                                       ./data/features/*.parquet ──► ml/infer.py
-                                                                                  ► predicted volatility
+trr/         TRR pipeline (brainstorm, memory, attention, reason, rag, corpus, select, prices, targets)
+kaggle/      self-contained 32B kernels + distributed deploy/poll/eval scripts (gen_corpus_shards, launch_corpus, eval_corpus)
+processing/  Apache Spark — corpus ETL (spark_corpus_etl) + Structured Streaming consumers
+train/       meta-learner, ablations, backtest, figures, significance
+serving/     FastAPI (/predict, /predict-ensemble, /backtest)
+webapp/      Streamlit live crash-advisory dashboard
+scripts/     live_daemon, build_corpus_news, fetch_fnspid, daily cron
+docs/        BAO_CAO_VI.md (report), SLIDE_VI.md (slides), ARCHITECTURE, REPORT, SLIDES
+reports/     RESULTS_TRR.md (master results)
 ```
 
-## The 11 features (per 5-minute window)
+---
 
-| Feature | Definition | Live source | Historical source |
-|---|---|---|---|
-| `vwap` | Σ(price·qty)/Σ(qty) | aggTrade | `quote_volume/volume` |
-| `price_return` | (close − open)/open | aggTrade | `*_5min_long.csv` |
-| `volume` | Σ qty | aggTrade | `*_5min_long.csv` |
-| `trade_count` | # trades | aggTrade | `n_trades` |
-| `volatility` | (high − low)/open | aggTrade | OHLC range |
-| `sentiment_score` | mean FinBERT score, ∈[−1,1] | CryptoPanic + FinBERT | 0 (no historical news) |
-| `open_interest` | futures open interest | `/fapi/v1/openInterest` | `*_metrics_full.csv` |
-| `funding_rate` | perp funding rate | `/fapi/v1/premiumIndex` | `*_funding.csv` (ffill) |
-| `taker_ls_ratio` | taker-buy vol / total vol | aggTrade maker flag | `taker_buy_volume/volume` |
-| `book_depth` | notional within ±1% | `@depth20@100ms` | `*_bookdepth_5min.csv` |
-| `liq_notional` | Σ liquidation notional | `@forceOrder` | `*_liquidations_5min.csv` |
-
-**Target:** the **next** window's `volatility` (regression, not raw price).
-
-Notes on the historical data:
-- BTC has no liquidations file, so ETH liquidations are used as a market-wide
-  liquidation-stress proxy (configurable in `ml/historical.py`).
-- News/sentiment has no historical record, so `sentiment_score` is 0 in training;
-  it becomes a live signal at serving time. (Retrain on the accumulated live
-  Parquet store — `make train` with `--source parquet` — to let the model learn
-  sentiment once enough live data exists.)
-- Heavy-tailed features (`volume`, `trade_count`, `open_interest`, `book_depth`,
-  `liq_notional`) are `log1p`-compressed before standardizing — applied
-  identically offline and online (`ml/dataset.feature_matrix`).
-
-## Project structure
-
-```
-bigdata/
-├── docker-compose.yml          # zookeeper, kafka (localhost:9092), spark master+worker
-├── config.py                   # central config: topics, 11-feature schema, paths
-├── requirements.txt · Makefile
-├── ingestion/
-│   ├── producer_price.py        # Binance aggTrade WS   -> crypto-price
-│   ├── producer_news.py         # CryptoPanic API       -> crypto-news
-│   ├── producer_futures.py      # OI + funding (REST)   -> crypto-futures
-│   ├── producer_depth.py        # order-book depth WS   -> crypto-depth
-│   └── producer_liquidations.py # forceOrder WS         -> crypto-liquidations
-├── processing/
-│   ├── consumer_price.py        # crypto-price -> features-price (5-min windows)
-│   ├── consumer_sentiment.py    # crypto-news  -> features-sentiment (FinBERT UDF)
-│   └── feature_join.py          # join all -> ./data/features parquet (11 features)
-├── sentiment/
-│   └── finbert.py               # score_sentiment(text) -> float in [-1, 1]
-├── ml/
-│   ├── historical.py            # merge historical CSVs -> feature matrix + target
-│   ├── dataset.py               # frames -> standardized sequences (+ log1p, splits)
-│   ├── model.py                 # LSTMVolatility: attention-pooled LSTM (PyTorch)
-│   ├── train.py                 # train -> models/lstm_volatility.pt
-│   ├── infer.py                 # load model + predict latest window
-│   ├── baselines.py             # naive predictors (persistence, rolling, EWMA)
-│   └── evaluate.py              # held-out test metrics + baseline comparison
-├── trr/                        # TRR — LLM temporal-relational crash prediction
-│   ├── schema.py                # NewsItem, ImpactEdge/Graph, Prediction
-│   ├── labels.py                # portfolio crash labels from price (FTX/LUNA)
-│   ├── llm.py                   # ReasoningLLM: MockLLM + HFReasoningLLM (Nemotron)
-│   ├── brainstorm.py            # phase 1: news -> directed impact graph
-│   ├── memory.py                # phase 2: decaying temporal memory R=exp(-t·λ)
-│   ├── attention.py             # phase 3: PageRank-style portfolio-biased prune
-│   ├── reason.py                # phase 4: LLM crash prediction on subgraph
-│   ├── pipeline.py              # TRRPipeline tying the four phases per day
-│   ├── news.py                  # news loader/normalizer + sample loader
-│   ├── sample_news.jsonl        # synthetic demo corpus (aligned to real crashes)
-│   └── evaluate.py              # AUROC/PR-AUC/F1 vs baselines + plots
-├── kaggle/                     # RTX 6000 Pro GPU deployment
-│   ├── train_kernel.py          # LSTM Kaggle entrypoint (no-internet, GPU gate)
-│   ├── trr_kernel.py            # TRR zero-shot Nemotron entrypoint
-│   ├── kernel-metadata.json     # LSTM kernel — the three-field RTX 6000 Pro gate
-│   ├── trr-kernel-metadata.json # TRR kernel metadata (+ Nemotron model_sources)
-│   ├── dataset-metadata.json    # code + data bundle
-│   ├── stage_and_deploy.sh      # LSTM: upload dataset + push kernel
-│   ├── deploy_trr.sh            # TRR: stage code+data+news + push kernel
-│   ├── README.md                # LSTM deploy guide + GPU verification
-│   └── TRR_README.md            # TRR deploy guide + Nemotron model setup
-├── scripts/
-│   ├── create_topics.sh
-│   └── generate_sample_features.py   # synthetic live feature store
-├── tests/
-│   └── test_smoke.py            # fast invariant checks (splits, shapes, model)
-├── data/features/              # live parquet feature store (output)
-├── reports/                    # evaluation plots (pred-vs-actual, scatter)
-└── models/                     # trained checkpoints + eval_metrics.json (output)
-```
-
-Run the smoke tests with `make test` (no GPU/Kafka/network needed).
-
-## Setup
+## How to run
 
 ```bash
-pip install -r requirements.txt        # Python 3.10+, virtualenv/conda recommended
-cp .env.example .env                    # add your CryptoPanic token
+# venv: /home/nduong/dev/bigdata/.venv/bin/python  (bare `python` not on PATH)
+.venv/bin/python -m pytest tests/ serving/tests/ -q        # tests (75 passing)
+bash scripts/run_all.sh                                    # reproduce analysis (no GPU)
+.venv/bin/streamlit run webapp/app.py                      # web app -> http://localhost:8501
 
-# Point HISTORICAL_DIR at the 5-min dataset (default already set):
-#   HISTORICAL_DIR=/home/nduong/eth-alpha/data
+# Big-data pipeline
+.venv/bin/python -m trr.corpus build                       # 12 GB corpus -> date-indexed SQLite
+.venv/bin/python -m processing.spark_corpus_etl            # corpus -> partitioned Parquet lake
+.venv/bin/python -m scripts.build_corpus_news              # RAG-select portfolio news per day
+python kaggle/gen_corpus_shards.py 20                      # generate 40 distributed shards
 ```
 
-## Quick start — train & predict (no infra needed)
-
-The model trains on the historical dataset directly:
-
-```bash
-make train-quick     # 2-epoch smoke train on a recent slice (~seconds on CPU)
-make infer           # predict next-window volatility
-make evaluate        # test-set metrics + baseline comparison table
-
-# Full training:
-make train           # 50 epochs on the full 4-year, 441k-window dataset (local GPU)
-make kaggle-deploy   # or train on Kaggle's RTX 6000 Pro (see below)
-```
-
-## Full live pipeline
-
-```bash
-make up               # start Kafka + Spark, auto-create topics
-make topics           # (idempotent) ensure topics exist
-
-# Ingestion — each in its own terminal:
-make producer-price   make producer-news    make producer-futures
-make producer-depth   make producer-liq
-
-# Stream processing — each in its own terminal:
-make consumer-price       # crypto-price -> features-price
-make consumer-sentiment   # crypto-news  -> features-sentiment (downloads FinBERT once)
-make feature-join         # merge all    -> ./data/features/*.parquet
-
-# Inference against the live store:
-make infer                # serves from parquet; falls back to historical if empty
-```
-
-Spark master UI: http://localhost:8080 — Kafka host listener: `localhost:9092`.
-
-The Spark jobs run in **local mode** against `localhost:9092` (simplest for one
-machine; also keeps `torch`/`transformers` available to the FinBERT UDF). The
-`spark-master`/`spark-worker` containers satisfy the cluster requirement and host
-the UI; add `--master spark://localhost:7077` to submit to the cluster instead.
-
-## Model
-
-`LSTMVolatility` (`ml/model.py`) — a 2-layer LSTM consuming sequences of
-`SEQUENCE_LENGTH` (default 24 = 2h of 5-min windows) of the 11 features. Instead
-of using only the final hidden state, it applies **additive (Bahdanau) attention
-pooling** over all time steps, then a small MLP head regresses the next window's
-volatility.
-
-Training (`ml/train.py`) uses a **3-way chronological split** (train / val /
-test), AdamW + weight decay, `ReduceLROnPlateau`, gradient clipping, and
-**early stopping** on validation loss. On GPU it auto-selects mixed precision by
-compute capability (**bf16** for sm_80+, **fp16** for sm_70/75, fp32 on CPU). The
-checkpoint bundles weights, hyperparameters, the feature layout, the
-standardizer, the split fractions, the training history, and validation metrics —
-so inference and evaluation are fully self-contained.
-
-## Evaluation & baselines
-
-`make evaluate` (`ml/evaluate.py`) scores the trained model on the **held-out
-test set** (the most recent 15%, never seen in training) and compares it against
-naive baselines (`ml/baselines.py`): **persistence**, **rolling mean** (k=6, 12),
-and **EWMA**. It reports RMSE, MAE, R², sMAPE/MAPE, and **directional accuracy**
-(did it predict volatility up vs down?), writes `models/eval_metrics.json`, and
-saves predicted-vs-actual and scatter plots to `reports/`.
-
-Volatility is highly autocorrelated, so the EWMA/rolling baselines are
-**strong** (R² ≈ 0.3) — beating them is the real bar, and the comparison table
-makes the LSTM's added value explicit and honest. Full training to beat them runs
-on the Kaggle GPU (below); a quick CPU `make train-quick` will not.
-
-## Train on Kaggle RTX 6000 Pro GPU
-
-`kaggle/` deploys offline training to Kaggle's NVIDIA RTX 6000 Pro (Blackwell,
-sm_120). The historical CSVs + project code are staged as one **private** Kaggle
-dataset (the kernel runs with **no internet**), and the kernel trains on GPU and
-emits the checkpoint + metrics as downloadable outputs.
-
-```bash
-# One-time: place your Kaggle API token at ~/.kaggle/kaggle.json (chmod 600)
-make kaggle-deploy     # stage data+code, create/version dataset, push kernel
-make kaggle-output     # download outputs and verify the log shows sm_120
-```
-
-The RTX 6000 Pro is gated behind **three** kernel-metadata fields
-(`machine_shape: NvidiaRtxPro6000`, `enable_gpu: true`,
-`competition_sources: [...]`) — missing any one silently falls back to a Tesla
-P100 (sm_60), which is broken on modern PyTorch. The kernel prints an explicit
-`sm_<cap>` line and aborts on the P100 fallback. See `kaggle/README.md`.
-
-## Configuration knobs (`config.py`)
-
-- `WINDOW_DURATION` / `SEQUENCE_LENGTH` — time resolution and LSTM context length
-- `FEATURE_COLUMNS` / `LOG_FEATURES` — model input layout and which features are log-scaled
-- `SYMBOL`, `HISTORICAL_DIR`, Kafka topics, storage paths
-```
+Derived data (12 GB corpus, 1.9 GB index, Parquet lake, RAG slices) is **gitignored** — only the code that regenerates it is tracked.
