@@ -52,13 +52,17 @@ Slide-by-slide outline. All numbers are from
 - **+ RAG** (rag.py): causal TF-IDF retrieval of similar PAST days + their real
   outcomes as dynamic few-shot
 
-## Slide 6 — Data scale
+## Slide 6 — Data scale & big-data character (honest)
 
-- Crypto news: 30.5k headlines (~43/day, 2021-10..2023-12) + 5.8k for 2024
-- Stock analyst news: 5,517 headlines, 343 news-days (2019-06..2020-06)
-- **FNSPID: 23 GB**, stream-filtered to 6 tickers (2021-23 bear market)
-- Fear & Greed index (daily); yfinance + 5-min OHLCV for labels
-- Run parallelised across ~18 Kaggle accounts in 6-month shards
+- **Volume**: FNSPID **23.2 GB** raw, **stream-filtered** to 6 tickers → 3.6 MB
+  (process-don't-store; verify via HTTP `Content-Length`). Stored corpora are
+  **medium data** (~640 MB total) — we don't claim terabytes.
+- **Variety** (multi-modal): news 40.8k + 31k headlines, Reddit ~940k posts,
+  5-min OHLCV ~441k windows, macro/world feeds — structured + unstructured.
+- **Velocity**: Kafka producers + Spark Structured Streaming + live yfinance/RSS + daily cron.
+- **Distributed compute**: 32B campaign parallelised across **~18 Kaggle GPU accounts**, 6-month shards.
+- Big-data *character* = Velocity + Variety + distributed processing + a 23 GB
+  streaming filter — not raw stored volume.
 
 ## Slide 7 — Results: the campaign (stocks primary)
 

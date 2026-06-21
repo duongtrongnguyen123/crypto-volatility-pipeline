@@ -33,6 +33,32 @@ Detail: §"Multi-window campaign", "Equities port", "RAG helps BEYOND COVID",
 
 ---
 
+## Data scope & big-data credentials (honest accounting)
+
+| Source | Records | Raw size | Stored locally |
+|---|---|---|---|
+| FNSPID financial news | 15.7M raw → 40,778 (6 tickers) | **23.2 GB** | **3.6 MB** (filtered) |
+| Crypto news (oliviervha) | 31,037 headlines | ~13 MB | ~13 MB |
+| Crypto 5-min OHLCV (Binance) | ~441k 5-min windows (6 assets) | ~193 MB | ~193 MB |
+| Reddit social posts | ~940k posts | ~426 MB | ~426 MB |
+| Stock prices (yfinance) | ~12k daily bars | <5 MB | <5 MB |
+
+**Be precise about volume (don't overclaim):**
+- The one genuinely large input is the **23.2 GB FNSPID** corpus, which is
+  **stream-filtered** (never fully downloaded or stored) down to the 6-ticker
+  **3.6 MB** slice — a legitimate process-don't-store big-data move (`scripts/fetch_fnspid.py`).
+- Everything **stored** is **medium data** (~640 MB total). We do **not** claim terabytes.
+- **Verify the 23.2 GB without downloading:**
+  `curl -sIL "https://huggingface.co/datasets/Zihan1004/FNSPID/resolve/main/Stock_news/nasdaq_exteral_data.csv"`
+  → `Content-Length: 23232979597`.
+- The big-data *character* rests on the **4 Vs**, not stored volume alone:
+  **Volume** (23.2 GB streamed), **Velocity** (Kafka producers + Spark Structured
+  Streaming + live yfinance/RSS + daily cron), **Variety** (structured OHLCV +
+  unstructured news/Reddit + macro/world — multi-modal), and **distributed
+  compute** (the 32B campaign parallelised across ~18 Kaggle GPU accounts; Spark).
+
+---
+
 ## Crypto prototype / cross-asset study (origin — secondary)
 
 The method was first built and tuned on crypto; these results show it generalises

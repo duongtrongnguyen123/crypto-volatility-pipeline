@@ -150,11 +150,19 @@ leak into its prediction.
 | yfinance daily closes | per window | 6 stocks | equity crash / direction labels |
 | eth-alpha 5-min OHLCV | 2022-01 to 2026-03 | 6 assets | crypto crash labels |
 
-The **23 GB FNSPID** corpus is the canonical Big Data input: it is too large to
-load whole, so it is **stream-filtered** down to the six target tickers before
-the pipeline sees it. Recent years are a hard data limit — stock analyst-ratings
-news ends 2020-06, crypto news ends 2023-12 — so live coverage needs a news API
-(Finnhub/GDELT), not a static corpus.
+**Data-volume honesty.** The one genuinely large input is the **23.2 GB FNSPID**
+corpus (verify without downloading: `curl -sIL` the HuggingFace file →
+`Content-Length: 23232979597`). It is **stream-filtered** to the six tickers and
+**never stored** — the on-disk result is only **3.6 MB** (40,778 headlines). This
+is a real process-don't-store big-data step, but we do **not** claim to store
+terabytes: every *stored* corpus is **medium data** (~640 MB total — crypto news
+~13 MB, Binance 5-min OHLCV ~193 MB, Reddit ~426 MB). The big-data *character*
+rests on the **4 Vs** — Volume (23.2 GB streamed), Velocity (Kafka/Spark
+streaming + live feeds + daily cron), Variety (structured OHLCV + unstructured
+news/Reddit + macro), and **distributed compute** (32B campaign across ~18 Kaggle
+GPU accounts) — not on stored size alone. Recent years are a hard data limit
+(analyst-ratings news ends 2020-06, crypto news 2023-12), so live coverage needs
+a news API (Finnhub/GDELT), not a static corpus.
 
 **Evaluation sizes.** Crypto 2022-23 = 712 days / 76 crashes; crypto 2024 = 284
 days / 19 crashes; crypto 2022-only = 363 days / 63 crashes; stock COVID window =
