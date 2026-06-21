@@ -54,6 +54,27 @@ uses Kaggle. Read on: **TRR first**, then the volatility pipeline.
 Full analysis + honest negatives in [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md);
 architecture & report in [`docs/`](docs/).
 
+## Daily deployment (live advisory)
+
+Daily cadence matches the 3-day horizon (minute-level isn't feasible). A cron at
+**05:00 ICT** (just after the US close) produces a structured **daily advisory**
+— risk level, most-exposed assets, key drivers, cautions — shown in the web:
+
+```
+scripts/daily_cron.sh   # cron: 0 5 * * *
+  ├─ scripts/daily_kaggle.py   → 32B on Kaggle (validated model)   [preferred]
+  ├─ scripts/daily_report.py --backend 7b → local Qwen-7B-AWQ + RAG [fallback]
+  └─ scripts/daily_report.py --backend mock                         [last resort]
+```
+
+It fetches **company + macro news** (yfinance, incl. `^GSPC/^IXIC/^VIX/^TNX` for
+Fed/rates/VIX/geopolitics — the corpus is otherwise macro-light), runs TRR, and
+writes `data/live/daily_report.json`. The webapp **Live tab** shows the advisory,
+a crash gauge, an auto-updating **news feed** (company + macro), and a "Try it"
+box (type a headline → live impact graph + crash prob). Heavy 32B = offline
+quality; local 7B = live deployment. Live news is unlabeled → it proves
+*deployment*, not accuracy (rigorous AUROC is the labeled backtests).
+
 ---
 
 ## TRR — LLM crash prediction (`trr/`)
