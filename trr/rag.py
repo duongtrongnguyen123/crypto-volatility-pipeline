@@ -46,6 +46,24 @@ class CausalRAG:
         self._matrix = m.multiply(1.0 / norms).tocsr()
         return self
 
+    def analogue_crash_rate(self, day_idx: int, labels: list[int]) -> float:
+        """Numeric meta-feature: the fraction of the retrieved similar PAST days
+        that actually crashed (0.0 if no eligible analogue). Causal — only days
+        older than the embargo are considered.
+        """
+        if self._matrix is None:
+            return 0.0
+        cutoff = day_idx - self.embargo
+        if cutoff <= 0:
+            return 0.0
+        q = self._matrix[day_idx]
+        sims = np.asarray((self._matrix[:cutoff] @ q.T).todense()).ravel()
+        order = np.argsort(-sims)[: self.k]
+        picks = [j for j in order if sims[j] >= self.min_sim]
+        if not picks:
+            return 0.0
+        return float(np.mean([labels[j] for j in picks]))
+
     def fewshot(self, day_idx: int, labels: list[int]) -> str:
         """Build the analogue few-shot block for the day at `day_idx`.
 

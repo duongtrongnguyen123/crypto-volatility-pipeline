@@ -79,6 +79,10 @@ def build_dataset() -> pd.DataFrame:
     return df
 
 
+# NOTE: a TF-IDF RAG analogue-crash-rate meta-feature (via
+# CausalRAG.analogue_crash_rate) was tested and REMOVED — it degraded the
+# ensemble out-of-time (0.667->0.654) and within-source 2021-2023 (0.629->0.588),
+# consistent with RAG being marginal on broad/cross-source windows. Kept out.
 FEATURES_FULL = ["crash_prob", "log_news", "log_edges", "ret_1d", "ret_5d",
                  "ret_10d", "vol_10d", "vol_20d", "downside_5d", "dd_from_high_20d"]
 FEATURES_TECH = ["ret_1d", "ret_5d", "ret_10d", "vol_10d", "vol_20d",
