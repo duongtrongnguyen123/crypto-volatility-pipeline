@@ -137,6 +137,9 @@ Kỹ thuật: **stream-and-filter** (không lưu file thô 23 GB), **đọc theo
 | **Toàn bộ 2016–2023 (78 sự kiện)** | 0.615 | **0.652** | +0.037 | **0.047 ✓** | 0.662 |
 > p-value bootstrap có-cặp theo ngày (2.000 vòng); cũ bundled: COVID 0.785/0.847, rộng 0.710.
 
+![AUROC corpus 2016–2023](../reports/figures/fig_corpus_auroc.png)
+> Hình: AUROC base/RAG/news-volume theo 3 cửa sổ (tái tạo: `python kaggle/plot_corpus_results.py`).
+
 **Đọc kết quả (trung thực + nhất quán với §9.1):**
 1. **Lọc theo danh mục đã SỬA lỗi:** COVID 0.37 (all-ticker hỏng) → **0.76**; rộng 0.50 → **0.69**.
 2. **RAG là cải thiện có ý nghĩa trên CẢ HAI corpus:** analyst-news +0.074 (p=0.009) **và** toàn FNSPID +0.037 (**p=0.047**). Chỉ *phẳng* ở lát hẹp FNSPID 2016–2020 (small-N) → **RAG giúp nơi có tiền lệ lịch sử sạch**, không phải mọi nơi (đây là luận điểm, không phải mâu thuẫn).

@@ -228,8 +228,7 @@
 - **Đối chiếu 1 — news-volume phụ thuộc corpus:** gần ngẫu nhiên (~0.50) trên analyst-news, nhưng **mạnh (0.66) trên FNSPID** vì SỐ tin/ngày phản ánh mức chú ý thị trường → *vì thế ta test cả hai nguồn*.
 - **Đối chiếu 2 — RAG giúp nơi có tiền lệ lịch sử sạch:** có ý nghĩa trên analyst-news (+0.074, p=0.009) **và** toàn FNSPID (+0.037, p=0.047); chỉ *phẳng* ở lát hẹp 2016–2020 (small-N) — đúng luận điểm.
 
-**🎨 Hình ảnh — BẢNG đối chiếu (3 hàng × 4 cột):**
-> Cột: Cửa sổ · Base · RAG · p-value · News-vol. 3 hàng (COVID / 2016–2020 / Toàn bộ). Tô **xanh lá** ô p<0.05 (Toàn bộ p=0.047), **xám** ô p>0.05. Dòng "Toàn bộ" in đậm. Chú thích nhỏ: "RAG thắng có ý nghĩa trên cả 2 corpus; news-vol mạnh-yếu tùy corpus".
+**🎨 Hình ảnh — DÙNG ẢNH CÓ SẴN `reports/figures/fig_corpus_auroc.png`** (biểu đồ cột nhóm base/RAG/news-vol theo 3 cửa sổ, kèm p-value + đường 0.50). Hoặc vẽ lại dạng bảng 3 hàng × (Base/RAG/p/News-vol), tô **xanh lá** ô p<0.05 (Toàn bộ p=0.047), **xám** ô p>0.05.
 
 **🎤 Ghi chú:** Hai dòng đối chiếu BIẾN "mâu thuẫn 14↔15" thành luận điểm: baseline & RAG phụ thuộc corpus/cửa sổ — đó CHÍNH là lý do test nhiều cấu hình. (Nếu bị hỏi "sao baseline nhảy 0.50→0.66?" → corpus khác nhau.)
 
