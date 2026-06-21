@@ -1,0 +1,38 @@
+\contentsline {section}{\numberline {1}Giới thiệu \& Động lực Nghiên cứu}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Bối cảnh Thị trường và Khối lượng Dữ liệu}{1}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Giả thuyết Thị trường Hiệu quả (EMH) và Giới hạn của Dự báo}{1}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Động lực Sử dụng Mô hình Ngôn ngữ Lớn (LLM)}{2}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Định nghĩa Bài toán (Problem Definition)}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Đầu vào (Inputs)}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Đầu ra (Outputs) và Nhãn (Labels)}{2}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Phương pháp Đánh giá (Evaluation Metrics)}{2}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Ràng buộc Nhân quả (Causal Constraint)}{3}{subsection.2.4}%
+\contentsline {section}{\numberline {3}Phương pháp Temporal Relational Reasoning (TRR)}{3}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Pha 1: Brainstorm (Khai phá Mối quan hệ)}{4}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Pha 2: Memory (Bộ nhớ Phân rã theo Thời gian)}{4}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Pha 3: Attention (Tập trung qua PageRank Thiên vị)}{4}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Pha 4: Reason (Lập luận Tổng hợp)}{5}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Truy hồi Tăng cường Lịch sử (Causal RAG)}{5}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Cơ chế Hoạt động của Causal RAG}{5}{subsection.4.1}%
+\contentsline {section}{\numberline {5}Kiến trúc Hệ thống Dữ liệu Lớn (Lambda Architecture)}{5}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Tầng Batch (Xử lý Ngoại tuyến bằng GPU)}{5}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Tầng Speed \& Tầng Phục vụ (Xử lý Thời gian thực)}{6}{subsection.5.2}%
+\contentsline {section}{\numberline {6}Khối lượng Dữ liệu \& Tiền xử lý (Big Data Pipeline)}{6}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Đặc tính Dữ liệu Khổng lồ}{6}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Apache Spark ETL và Định dạng Parquet}{6}{subsection.6.2}%
+\contentsline {section}{\numberline {7}Thực nghiệm \& Kết quả Chuyên sâu (Empirical Results)}{7}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Thực nghiệm trên Hai Bộ Dữ Liệu (Dual-Corpus Campaign)}{7}{subsection.7.1}%
+\contentsline {subsubsection}{\numberline {7.1.1}Kết quả trên bộ Analyst-ratings}{7}{subsubsection.7.1.1}%
+\contentsline {subsubsection}{\numberline {7.1.2}Kết quả Toàn Corpus FNSPID 2016-2023}{7}{subsubsection.7.1.2}%
+\contentsline {subsection}{\numberline {7.2}Chạy thực nghiệm trên Crypto \& Khảo sát 14B vs 32B}{8}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Dự đoán Per-Asset (Từng Mã Tài Sản Riêng Lẻ)}{9}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Đánh giá Kinh tế học (Economic Backtest) - Đột phá Ứng dụng}{10}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Chiến lược Giảm Rủi Ro (De-risk Overlay Strategy)}{10}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Giá trị Gia tăng Cận biên (Incremental Value)}{11}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Các kỹ thuật Nâng cao \& Phân tích Thất bại Trung thực}{12}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Độ Hiệu chuẩn Xác suất (Calibration)}{12}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Độ Cảnh báo Sớm (Precision@K)}{13}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Meta-Learner \& Mạng Neural Đồ thị (GNN) bị Overfit}{13}{subsection.9.3}%
+\contentsline {section}{\numberline {10}Tổng kết}{14}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Thành tựu Chính}{14}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Hướng Phát triển Mở rộng}{14}{subsection.10.2}%
