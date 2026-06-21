@@ -177,6 +177,12 @@ if st.button("↻ Run once with local Qwen-7B (real LLM on the 2060, ~1–3 min)
             st.warning(f"7B run failed: {exc}")
 st.markdown("---")
 
+st.header("📊 Historical backtest (labeled evaluation)")
+st.caption(f"This section is NOT live — it replays a past run ({run['label']}, "
+           f"`out_{run['slug']}`) with KNOWN outcomes so we can score it (AUROC "
+           "needs labels). This is where the rigorous numbers come from; the live "
+           "monitor above is the real-time deployment.")
+
 latest_prob = summ["latest_prob"] or 0.0
 peak_prob = summ["peak_prob"] or 0.0
 
@@ -228,7 +234,8 @@ with m_col:
             else "LOW")
     colour = {"HIGH": "#dc2626", "ELEVATED": "#d97706", "LOW": "#16a34a"}[risk]
     st.markdown(
-        f"#### Current risk: <span style='color:{colour}'>{risk}</span>",
+        f"#### Risk on this run's last day ({latest_date.date().isoformat() if latest_date is not None else '—'}): "
+        f"<span style='color:{colour}'>{risk}</span>",
         unsafe_allow_html=True,
     )
 
