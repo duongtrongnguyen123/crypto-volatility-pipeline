@@ -26,7 +26,7 @@
 **② Nội dung**
 - **Tiêu đề lớn:** Dự đoán Crash Giá Cổ phiếu bằng Suy luận Quan hệ theo Thời gian của LLM
 - **Phụ đề:** Đồ án Big Data · phỏng theo arXiv:2410.17266
-- Nhóm: [TÊN NHÓM] · Thành viên: [TÊN] · GVHD: [TÊN GV] · [HỌC KỲ/NĂM]
+- Thành viên: **Nguyễn Ngọc Bình An** · **Dương Trọng Nguyên** — UET-VNU · GVHD: [GVHD] · [HỌC KỲ/NĂM]
 
 **🎨 Hình ảnh — PROMPT vẽ ảnh nền:**
 > "Ảnh bìa tối giản, nền trắng-xám gradient nhẹ. Bên phải: biểu đồ nến chứng khoán màu đỏ đang lao dốc mạnh, chồng mờ lên là một mạng nơ-ron/đồ thị node phát sáng màu xanh lá (tượng trưng LLM đọc tin). Phong cách phẳng (flat), hiện đại, chuyên nghiệp, không chữ trong ảnh."
