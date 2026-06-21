@@ -1,5 +1,5 @@
 # BÁO CÁO ĐỒ ÁN BIG DATA
-## Suy luận Quan hệ theo Thời gian của Mô hình Ngôn ngữ Lớn để Dự đoán Crash Giá Cổ phiếu
+## Temporal Relational Reasoning of Large Language Models for Stock Price Prediction
 ### (Temporal Relational Reasoning of LLMs for Stock Crash Prediction — phỏng theo arXiv:2410.17266)
 
 > Ghi chú: Các chỗ đánh dấu 「điền sau」 là kết quả đang chạy (mẻ Kaggle toàn bộ corpus 2016–2023 với lọc theo danh mục) — sẽ điền số khi có. Các con số đã có là số thật đã đo.

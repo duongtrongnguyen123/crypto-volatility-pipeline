@@ -85,3 +85,9 @@ data/stockdata/stocknews_corpus.csv
 
 # Spark Parquet data lake (rebuild via processing/spark_corpus_etl.py)
 data/lake/
+
+# LaTeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc

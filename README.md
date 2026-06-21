@@ -12,8 +12,24 @@ The narrowing from "price prediction" (the paper's title) to **crash / tail-risk
 prediction** is deliberate: direction and raw price are ≈ chance under weak-form
 market efficiency, while crash risk carries a real signal from news.
 
-📄 **Báo cáo & slide tiếng Việt:** [`docs/BAO_CAO_VI.md`](docs/BAO_CAO_VI.md) · [`docs/SLIDE_VI.md`](docs/SLIDE_VI.md)
-📊 **Kết quả chi tiết:** [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md)
+## 📦 Deliverables
+| | |
+|---|---|
+| 📄 **Report (PDF)** | [`docs/BAO_CAO_VI.pdf`](docs/BAO_CAO_VI.pdf) · source: [`.tex`](docs/BAO_CAO_VI.tex) / [`.md`](docs/BAO_CAO_VI.md) |
+| 📑 **Slides (PDF)** | [`docs/SLIDE_FINAL.pdf`](docs/SLIDE_FINAL.pdf) |
+| 🎥 **Demo video** | [▶ Watch on Google Drive](https://drive.google.com/file/d/16YsmR0EKPwxffuufMp2KWej-wsMKP27m/view) (preview below) |
+| 🌐 **Live web demo** | **https://bigdata-stock-crash-trr.streamlit.app** — Streamlit (Live & Advisory · Research & Backtest · How it works) |
+| 🎤 **Demo scripts** | [`docs/DEMO_VI.md`](docs/DEMO_VI.md) (talk) · [`docs/DEMO_RECORD_VI.md`](docs/DEMO_RECORD_VI.md) (recording) |
+| 📊 **Full results** | [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md) |
+
+**Preview — click a cover to open the full PDF (in GitHub's PDF viewer):**
+
+<a href="docs/BAO_CAO_VI.pdf"><img src="docs/preview/report_cover.png" width="340" alt="Report (PDF)"></a> &nbsp;&nbsp; <a href="docs/SLIDE_FINAL.pdf"><img src="docs/preview/slide_cover.png" width="340" alt="Slides (PDF)"></a>
+
+<sub>↑ Report cover (left) and Slides (right) — click to open the full PDF.</sub>
+
+### 🎥 Demo video
+**▶ [Watch the demo video (Google Drive)](https://drive.google.com/file/d/16YsmR0EKPwxffuufMp2KWej-wsMKP27m/view)**
 
 ---
 
