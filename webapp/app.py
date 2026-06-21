@@ -31,10 +31,33 @@ st.set_page_config(page_title="TRR — Stock Crash Radar", page_icon="📉",
 
 st.markdown(
     """<style>
-      .block-container {padding-top: 1.5rem; padding-bottom: 3rem;}
-      .stMetric {background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;
-                 padding:0.5rem 0.8rem;}
-      h1,h2,h3 {letter-spacing:-0.01em;}
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+      html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+      .block-container {padding-top: 1.2rem; padding-bottom: 3rem; max-width: 1300px;}
+      /* dark fintech metric cards with subtle green edge + glow */
+      [data-testid="stMetric"] {
+        background: linear-gradient(180deg,#16223a 0%,#101a2e 100%);
+        border: 1px solid #1f3350; border-left: 3px solid #22c55e;
+        border-radius: 14px; padding: 0.7rem 1rem;
+        box-shadow: 0 1px 14px rgba(34,197,94,0.06);
+      }
+      [data-testid="stMetricValue"] { font-weight: 800; }
+      h1 { font-weight: 800; letter-spacing:-0.02em;
+           background: linear-gradient(90deg,#e5e7eb,#22c55e);
+           -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+      h2,h3 { letter-spacing:-0.01em; font-weight:700; }
+      /* tabs: pill-like, green active underline */
+      .stTabs [data-baseweb="tab-list"] { gap: 4px; }
+      .stTabs [data-baseweb="tab"] { background:#101a2e; border-radius:10px 10px 0 0;
+        padding: 8px 16px; }
+      .stTabs [aria-selected="true"] { background:#16223a;
+        border-bottom: 2px solid #22c55e; }
+      /* buttons */
+      .stButton>button { border-radius:10px; border:1px solid #22c55e55;
+        background:#13233b; font-weight:600; }
+      .stButton>button:hover { border-color:#22c55e; box-shadow:0 0 12px #22c55e33; }
+      a { color:#22c55e; }
+      hr { border-color:#1f3350; }
     </style>""", unsafe_allow_html=True)
 
 _RISK_COLOR = {"HIGH": "#dc2626", "ELEVATED": "#d97706", "LOW": "#16a34a"}
@@ -62,15 +85,18 @@ def gauge(prob, title):
     p = max(0.0, min(1.0, prob)) * 100
     colour = "#dc2626" if p >= 60 else "#d97706" if p >= 30 else "#16a34a"
     fig = go.Figure(go.Indicator(
-        mode="gauge+number", value=p, number={"suffix": "%"},
-        title={"text": title, "font": {"size": 15}},
-        gauge={"axis": {"range": [0, 100]}, "bar": {"color": colour},
-               "steps": [{"range": [0, 30], "color": "#dcfce7"},
-                         {"range": [30, 60], "color": "#fef9c3"},
-                         {"range": [60, 100], "color": "#fee2e2"}],
-               "threshold": {"line": {"color": "#111", "width": 3},
+        mode="gauge+number", value=p, number={"suffix": "%", "font": {"color": "#e5e7eb"}},
+        title={"text": title, "font": {"size": 14, "color": "#94a3b8"}},
+        gauge={"axis": {"range": [0, 100], "tickcolor": "#475569"},
+               "bar": {"color": colour},
+               "bgcolor": "rgba(0,0,0,0)",
+               "steps": [{"range": [0, 30], "color": "rgba(34,197,94,0.18)"},
+                         {"range": [30, 60], "color": "rgba(217,119,6,0.18)"},
+                         {"range": [60, 100], "color": "rgba(220,38,38,0.20)"}],
+               "threshold": {"line": {"color": "#e5e7eb", "width": 3},
                              "thickness": 0.75, "value": 50}}))
-    fig.update_layout(height=240, margin=dict(l=20, r=20, t=50, b=10))
+    fig.update_layout(height=240, margin=dict(l=20, r=20, t=50, b=10),
+                      paper_bgcolor="rgba(0,0,0,0)", font={"color": "#e5e7eb"})
     return fig
 
 
