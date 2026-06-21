@@ -50,8 +50,12 @@ class TRRPipeline:
         brainstorm_max_new_tokens: int = 768,
         rag=None,
         rag_labels=None,
+        multi_hop=False,
     ) -> None:
         self.llm = llm if llm is not None else MockLLM()
+        # multi_hop: enrich the reasoning context with multi-hop causal chains
+        # (Graph-RAG) walked from the accumulated impact graph.
+        self.multi_hop = multi_hop
         # rag: optional CausalRAG retriever that injects case-based few-shot
         # (similar PAST days + their realized outcomes) into the reasoning
         # context. rag_labels maps a day -> realized crash label (0/1); only
@@ -166,7 +170,13 @@ class TRRPipeline:
             combined = today_edges + [e for e in salient if e not in today_edges]
             pruned = pagerank_prune(combined, self.portfolio, top_k=self.top_k)
             tuples_list.append([e.as_tuple() for e in pruned])
-            contexts.append(memory_context(decayed))
+            ctx = memory_context(decayed)
+            if self.multi_hop:
+                from trr.graphrag import chains_context
+                block = chains_context(combined, self.portfolio)
+                if block:
+                    ctx = block + ctx
+            contexts.append(ctx)
             n_edges.append(len(pruned))
 
         # Phase B2 (optional) — RAG: prepend case-based few-shot (similar PAST
