@@ -60,26 +60,29 @@ Slide-by-slide outline. All numbers are from
 - Fear & Greed index (daily); yfinance + 5-min OHLCV for labels
 - Run parallelised across ~18 Kaggle accounts in 6-month shards
 
-## Slide 7 — Results: the campaign
+## Slide 7 — Results: the campaign (stocks primary)
 
-| Window | TRR AUROC | news-volume | RAG |
+| Window | N crashes | TRR AUROC | +RAG (Δ, significance) |
 |---|---|---|---|
-| Stock — COVID (2019-20) | **0.785** | 0.71 | **0.847** |
-| Stock — 2016-2020 pooled | 0.710 | **0.747** | — |
-| Crypto — 2022-23 | 0.530 | 0.458 | 0.542 |
-| FNSPID — 2021-23 bear | 0.550 | 0.491 | — |
+| Stock — COVID 2019-20 | 14 | **0.785** | 0.847 (+0.063, n.s. — few events) |
+| Stock — broad 2016-2020 (pooled) | 31 | 0.710 | **+0.074, p=0.009** |
+| FNSPID — bear 2021-23 (pooled) | 41 | 0.550 | **+0.065, p=0.004** |
+| Crypto — 2022-23 (cross-asset) | 76 | 0.530 | +0.012 (n.s.) |
 
-- Strongest on a single concentrated panic; modest across broad regimes
-- RAG helps where analogues exist (+0.06 COVID), marginal on one-offs (+0.01)
-- News-volume wins only on the calm broad stock window
+- **N = crash events** (not days) — AUROC rests on **14–76 positives**, so quote
+  *pooled, CI-backed* results; treat any single small-window cell as indicative only.
+- **RAG is the robust win** — statistically significant (paired bootstrap) on the
+  two larger-N windows; helps the local 7B +0.058 (≈ 32B baseline).
+- Strongest on a concentrated panic; modest across broad regimes.
 
 ## Slide 8 — Results: economic value (the robust win)
 
-- De-risk to cash on top-20% highest-crash-prob days (no lookahead)
-- 2022-23 bear: buy&hold **-39.3%** -> de-risk **+4.2%**; maxDD -75.4% -> -61.5%
-- 2024 bull: buy&hold **+22.1%** -> de-risk **+31.5%**; maxDD -40.7% -> -32.5%
-- Drawdown reduction survives 10 bps costs in both regimes
-- Precision@10 = 0.30 (~3x base rate): top alerts are real
+- Leak-free walk-forward de-risk overlay (cash on highest-crash-prob days)
+- **Stock 2018-2023: de-risk +205% / -45.0% maxDD / 0.97 Sharpe**
+  vs buy&hold +161% / -50.2% / 0.80 — beats on **return AND drawdown**
+- Precision@10 = 0.20 (3.2x base rate): the very top alerts are enriched
+- Even a modest-AUROC detector is economically useful as a risk overlay
+  (you only need to be right on the worst days)
 
 ## Slide 9 — Feasibility insight (the key takeaway)
 
@@ -100,6 +103,9 @@ Slide-by-slide outline. All numbers are from
 
 ## Slide 11 — Honest limitations
 
+- **Small N is the real ceiling**: every headline AUROC rests on **14–76 crash
+  events**, so per-asset / single-window cells are *indicative only* — only the
+  pooled, bootstrap-CI'd results are claimed. Don't over-read single cells.
 - AUROC is modest and, on crypto, **not statistically separable from
   price-momentum** (only 76 crash events)
 - Sentiment ensemble was leaky: 0.653 -> 0.577 leak-free

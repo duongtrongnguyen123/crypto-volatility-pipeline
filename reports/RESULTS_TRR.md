@@ -1,23 +1,42 @@
-# Results — Temporal Relational Reasoning of LLMs for Crypto Crash Prediction
+# Results — Temporal Relational Reasoning of LLMs for Stock Crash Prediction
 
 Empirical study for the assignment *"Temporal Relational Reasoning of Large
-Language Models for Stock Price Prediction"* (crypto adaptation of
-[arXiv:2410.17266](https://arxiv.org/abs/2410.17266)).
+Language Models for Stock Price Prediction"* ([arXiv:2410.17266](https://arxiv.org/abs/2410.17266)).
 
-**Task.** For each day, predict the probability that an equal-weight crypto
-portfolio (BTC, ETH, SOL, BNB, AVAX, DOGE) **crashes** — drops > 8% over the next
-3 days. Binary, imbalanced (~11% positive), scored by **AUROC**. The LLM reasons
-**zero-shot / few-shot over news** (price is used only for labels and as an
-optional ensemble signal).
+**Primary objective = STOCKS.** A zero-shot LLM reads financial **news** and
+predicts the probability an equal-weight **stock** portfolio (AAPL, AMZN, GOOGL,
+NVDA, TSLA, NFLX) **crashes** (a large draw-down over the next ~3 trading days),
+scored by **AUROC**. The method was first prototyped on **crypto** (BTC/ETH/… —
+24/7 markets, easy data) which now serves as a **secondary cross-asset
+robustness study**; the stock results are the deliverable.
 
 **Pipeline.** Four phases per day: Brainstorm (news → directed impact graph) →
 Memory (decay `R=exp(-t·λ)`) → Attention (PageRank prune) → Reasoning (LLM →
-crash probability). Run on Kaggle RTX 6000 Pro (Blackwell, sm_120), batched
-`transformers`, no internet.
+crash probability). Zero-shot Qwen2.5-32B on Kaggle RTX 6000 Pro (no internet),
+plus a local Qwen2.5-7B for live serving.
+
+## Headline results — STOCKS (primary)
+
+| Window | Model | Crash AUROC |
+|---|---|---:|
+| **COVID 2019–20** | 32B | **0.785** (+RAG **0.847**) |
+| Broad 2016–2020 (9-shard pooled) | 32B | 0.710 (news-vol 0.747) |
+| FNSPID bear 2021–23 | 32B | 0.550 (> news-vol 0.491) |
+| Broad 2018–2020 | 7B + RAG | 0.583 (≈ 32B baseline) |
+
+- **RAG is the robust win**: +0.074 broad (p=0.009), +0.065 bear (p=0.004); helps 7B +0.058.
+- **Economic backtest**: de-risk overlay **+205% / −45% maxDD / 0.97 Sharpe** vs buy&hold.
+- Direction/raw price ≈ chance (EMH); tail-risk is the feasible target.
+
+Detail: §"Multi-window campaign", "Equities port", "RAG helps BEYOND COVID",
+"7B vs 32B", "Does TRAINING help", "Economic backtest" below.
 
 ---
 
-## Headline results
+## Crypto prototype / cross-asset study (origin — secondary)
+
+The method was first built and tuned on crypto; these results show it generalises
+across asset classes (and where the method's levers were discovered).
 
 | Setup | Model | Window | AUROC |
 |---|---|---|---:|
@@ -30,7 +49,8 @@ crash probability). Run on Kaggle RTX 6000 Pro (Blackwell, sm_120), batched
 | + Fear & Greed ensemble | 32B | 2022–23 | **0.653** |
 | Social-post reasoning (Reddit) | 32B | 2022 | 0.475–0.489 ✗ |
 
-Baselines: news-volume 0.458, price-momentum 0.550, base rate 0.107.
+Crypto baselines: news-volume 0.458, price-momentum 0.550, base rate 0.107.
+Crypto task: equal-weight BTC/ETH/SOL/BNB/AVAX/DOGE, drop > 8% over 3 days.
 
 ---
 
@@ -203,6 +223,12 @@ Beyond the portfolio, we asked the LLM for a crash probability **per asset**
 | DOGE | 31 | 0.461 | 0.550 | [0.454, 0.648] |
 | **macro** | | **0.493** | **0.594** | |
 
+> ⚠️ **Small-N caveat.** These per-asset cells rest on 16–69 crash events; the 95%
+> CIs are wide (e.g. BTC 0.690 on **16 events** spans [0.545, 0.817]) and most
+> overlap 0.5. Read the per-asset numbers as *indicative*, not significant — the
+> claims rest on the **pooled, CI-backed** results, not any single cell. Do not
+> quote BTC 0.690 (or similar single cells) as a headline.
+
 **Findings:**
 1. **Per-asset works only at scale.** 14B is at chance across the board (macro
    0.493); 32B reaches macro **0.594**, with **BTC (0.690) and ETH (0.639)
@@ -316,10 +342,11 @@ momentum**, carrying complementary information rather than a price proxy. Modest
 are stable across strata — the cleanest evidence that the LLM signal adds
 something price autocorrelation does not.
 
-## Matching the title literally: stocks + direction + live serving
+## Stock study (the primary deliverable) + direction + live serving
 
-The title says "**Stock** Price Prediction"; our core study is crypto crash
-detection. To close the gaps:
+The assignment target is **stocks** — this is the primary study (the crypto
+sections above are the prototype / cross-asset robustness check). The equities
+results, direction target, and live serving:
 
 ### Equities port (`trr/prices.py`, `scripts/build_stock_data.py`)
 The same TRR pipeline run on **6 large-cap stocks** (AAPL, AMZN, GOOGL, NVDA,
