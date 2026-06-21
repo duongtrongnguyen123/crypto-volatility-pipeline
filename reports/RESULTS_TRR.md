@@ -429,6 +429,15 @@ days, 65 crashes):
   the 32B's consistent RAG gain. So: **RAG with 7B = yes for local deployment**,
   but the 32B is still the trustworthy batch predictor.
 
+### Adding full OHLCV (volume) to the news+price ML model — mostly no
+Tested enriching the meta-learner with volume + intraday-range features (full
+OHLCV, not just close): **intraday range helped a little** (technical-only
+0.682->0.698), but **volume-spike features HURT** (negative out-of-time
+importance, ensemble 0.667->0.624) — regime-unstable across eras with few crash
+events. Kept `pf_range`, dropped the volume spikes. Net: OHLCV volume is not a
+robust add for this (rare-event, cross-era) crash task; the news signal still
+adds value over price (see within-source fairness below).
+
 ### Does TRAINING help? (meta-learner, `train/`)
 Out-of-time / cross-source (train 2016-2020 analyst news -> test 2021-2023 FNSPID):
 

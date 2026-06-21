@@ -67,3 +67,4 @@ kaggle/cbuild/
 kaggle/p_*/
 kaggle/ds_*/
 data/live/
+data/ohlcv/

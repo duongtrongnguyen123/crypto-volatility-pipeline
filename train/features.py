@@ -76,17 +76,58 @@ def build_dataset() -> pd.DataFrame:
     # log news volume (heavy-tailed)
     df["log_news"] = np.log1p(df["n_news"])
     df["log_edges"] = np.log1p(df["n_edges"])
+    # richer OHLCV (volume + intraday range) — classic crash precursors
+    ohlcv = _ohlcv_features("data/ohlcv")
+    if ohlcv is not None:
+        df = df.join(ohlcv, how="left")
+        for c in OHLCV_FEATS:
+            if c in df:
+                df[c] = df[c].fillna(df[c].median())
     return df
+
+
+def _ohlcv_features(ohlcv_dir):
+    """Portfolio-level volume + range features from full OHLCV (equal-weight)."""
+    if not os.path.exists(os.path.join(ohlcv_dir, f"{TICKERS[0]}.csv")):
+        return None
+    rng, spike = {}, {}
+    for t in TICKERS:
+        p = os.path.join(ohlcv_dir, f"{t}.csv")
+        if not os.path.exists(p):
+            continue
+        d = pd.read_csv(p)
+        d = d.rename(columns={d.columns[0]: "date"})
+        d.columns = [c.lower() for c in d.columns]
+        d["date"] = pd.to_datetime(d["date"]).dt.date
+        d = d.set_index("date").sort_index()
+        rng[t] = (d["high"] - d["low"]) / d["close"]                  # intraday range
+        spike[t] = d["volume"] / d["volume"].rolling(20).mean()        # volume surge
+    R = pd.DataFrame(rng); S = pd.DataFrame(spike)
+    out = pd.DataFrame(index=R.index)
+    out["pf_range"] = R.mean(axis=1)
+    out["pf_range_5d"] = R.mean(axis=1).rolling(5).mean()
+    out["pf_volspike"] = S.mean(axis=1)        # avg volume surge across portfolio
+    out["pf_volspike_max"] = S.max(axis=1)     # any single asset spiking
+    return out
+
+
+OHLCV_FEATS = ["pf_range", "pf_range_5d", "pf_volspike", "pf_volspike_max"]
 
 
 # NOTE: a TF-IDF RAG analogue-crash-rate meta-feature (via
 # CausalRAG.analogue_crash_rate) was tested and REMOVED — it degraded the
 # ensemble out-of-time (0.667->0.654) and within-source 2021-2023 (0.629->0.588),
 # consistent with RAG being marginal on broad/cross-source windows. Kept out.
+# NOTE: volume-spike OHLCV features (pf_volspike, pf_volspike_max, pf_range_5d)
+# were tested and DROPPED — they had negative out-of-time importance and hurt the
+# ensemble (0.667->0.624), regime-unstable across news/price eras. Intraday RANGE
+# (pf_range) modestly helped (tech 0.682->0.698) and is kept.
 FEATURES_FULL = ["crash_prob", "log_news", "log_edges", "ret_1d", "ret_5d",
-                 "ret_10d", "vol_10d", "vol_20d", "downside_5d", "dd_from_high_20d"]
+                 "ret_10d", "vol_10d", "vol_20d", "downside_5d", "dd_from_high_20d",
+                 "pf_range"]
 FEATURES_TECH = ["ret_1d", "ret_5d", "ret_10d", "vol_10d", "vol_20d",
-                 "downside_5d", "dd_from_high_20d", "log_news", "log_edges"]
+                 "downside_5d", "dd_from_high_20d", "log_news", "log_edges",
+                 "pf_range"]
 
 
 if __name__ == "__main__":
