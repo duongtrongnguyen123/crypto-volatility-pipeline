@@ -40,7 +40,9 @@ for n in $LINES; do
   dd="kaggle/dsc_$u"; rm -rf "$dd"; mkdir -p "$dd"; cp kaggle/sd_corpus/* "$dd"/
   printf '{"title":"stock corpus 2016-2023","id":"%s/%s","licenses":[{"name":"other"}],"isPrivate":true}\n' "$u" "$DSID" > "$dd/dataset-metadata.json"
   if $KG datasets files "$u/$DSID" 2>/dev/null | grep -q stocknews; then
-    echo "  [ds/$u] already present"
+    # content changed (portfolio-filtered) -> push a NEW VERSION; kernels pick up latest
+    echo "  [ds/$u] new version: $($KG datasets version -p "$dd" -m "portfolio-filtered" --dir-mode zip 2>&1 | tail -1)"
+    sleep 25
   else
     echo "  [ds/$u] $($KG datasets create -p "$dd" --dir-mode zip 2>&1 | tail -1)"
     for w in $(seq 1 25); do sleep 6
@@ -51,7 +53,8 @@ for n in $LINES; do
   for cfg in cb cr; do
     tag="$cfg$j"; kid="sc-$tag"          # kernel slug (>=5 chars)
     st=$($KG kernels status "$u/$kid" 2>&1 | tail -1)
-    case "$st" in *RUNNING*|*QUEUED*|*COMPLETE*) echo "  [$kid/$u] already $st — SKIP"; continue;; esac
+    # re-run COMPLETE/ERROR kernels (a push = new version = re-run); only skip in-flight
+    case "$st" in *RUNNING*|*QUEUED*) echo "  [$kid/$u] $st — SKIP (in flight)"; continue;; esac
     pd="kaggle/pk_$tag"; rm -rf "$pd"; mkdir -p "$pd"; cp "kaggle/cshards/$tag.py" "$pd/$tag.py"
     cat > "$pd/kernel-metadata.json" <<JSON
 {"id":"$u/$kid","title":"$kid","code_file":"$tag.py","language":"python","kernel_type":"script","is_private":true,"enable_gpu":true,"enable_tpu":false,"enable_internet":false,"machine_shape":"NvidiaRtxPro6000","competition_sources":["$COMP"],"dataset_sources":["$u/$DSID"],"kernel_sources":[],"model_sources":["$MODEL"]}

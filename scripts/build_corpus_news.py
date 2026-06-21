@@ -23,9 +23,11 @@ import time
 import pandas as pd
 
 from trr.corpus import CorpusIndex
-from trr.select import crash_query, select_relevant
+from trr.select import select_salient
 
 STOCK_TICKERS = ["AAPL", "AMZN", "GOOGL", "NVDA", "TSLA", "NFLX"]
+# FNSPID tags Google mostly as GOOG; treat it as GOOGL for the portfolio.
+PSET = {t.upper() for t in STOCK_TICKERS} | {"GOOG"}
 
 
 def trading_days(price_csv: str, start: str, end: str) -> list[str]:
@@ -48,28 +50,41 @@ def main() -> None:
 
     idx = CorpusIndex(args.db)
     days = trading_days(args.price, args.start, args.end)
-    q = crash_query(STOCK_TICKERS)
-    print(f"[corpus-news] {len(days)} trading days {args.start}..{args.end}, k={args.k}")
+    print(f"[corpus-news] {len(days)} trading days {args.start}..{args.end}, k={args.k} "
+          f"(PORTFOLIO-filtered: {sorted(PSET)})")
 
-    rows, pool_total, t0 = [], 0, time.time()
+    rows, pool_total, pf_total, t0 = [], 0, 0, time.time()
     for i, d in enumerate(days, 1):
         pool = idx.day(d)
         pool_total += len(pool)
-        sel = select_relevant(pool, q, args.k, STOCK_TICKERS) if pool else []
+        # PORTFOLIO FILTER: keep only news tagged with a portfolio ticker, and
+        # normalise GOOG -> GOOGL so the pipeline's portfolio matching sees it.
+        pf = []
+        for it in pool:
+            if {a.upper() for a in it.assets} & PSET:
+                it.assets = ["GOOGL" if a.upper() in ("GOOG", "GOOGL") else a.upper()
+                             for a in it.assets]
+                pf.append(it)
+        pf_total += len(pf)
+        # Salience-rank WITHIN the portfolio pool (no fixed crash query, so calm
+        # days surface calm headlines — the discrimination the all-ticker
+        # crash-query selection destroyed).
+        sel = select_salient(pf, args.k, STOCK_TICKERS) if pf else []
         for it in sel:
             rows.append({"date": d, "title": it.title,
                          "assets": ",".join(it.assets), "source": it.source or "fnspid"})
         if i % 200 == 0:
             dt = time.time() - t0
-            print(f"  [{i}/{len(days)}] kept={len(rows)} "
-                  f"(avg pool {pool_total/i:.0f}/day)  {dt:.0f}s  eta {dt/i*(len(days)-i):.0f}s",
+            print(f"  [{i}/{len(days)}] kept={len(rows)} pf_pool={pf_total} "
+                  f"(avg pf {pf_total/i:.1f}/day)  {dt:.0f}s  eta {dt/i*(len(days)-i):.0f}s",
                   flush=True)
 
     pd.DataFrame(rows, columns=["date", "title", "assets", "source"]).to_csv(
         args.out, index=False)
     idx.close()
-    print(f"DONE: {len(rows)} selected items over {len(days)} days "
-          f"(avg pool {pool_total/max(1,len(days)):.0f}/day) -> {args.out}", flush=True)
+    print(f"DONE: {len(rows)} portfolio items over {len(days)} days "
+          f"(avg pf-pool {pf_total/max(1,len(days)):.1f}/day, raw pool "
+          f"{pool_total/max(1,len(days)):.0f}/day) -> {args.out}", flush=True)
 
 
 if __name__ == "__main__":

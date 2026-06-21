@@ -24,13 +24,13 @@ one_pass(){
     u=$(setauth "$n"); j_in=$j
     for cfg in cb cr; do
       tag="$cfg$j_in"; kid="sc-$tag"; total=$((total+1))
-      if [ -f "$OUT/$tag/trr_predictions.csv" ]; then done=$((done+1)); continue; fi
+      if [ -f "$OUT/$tag/crash/trr_predictions.csv" ]; then done=$((done+1)); continue; fi
       st=$($KG kernels status "$u/$kid" 2>&1 | tail -1)
       case "$st" in
         *COMPLETE*)
           mkdir -p "$OUT/$tag"
           $KG kernels output "$u/$kid" -p "$OUT/$tag" >/dev/null 2>&1
-          [ -f "$OUT/$tag/trr_predictions.csv" ] && { echo "[$tag/$u] downloaded"; done=$((done+1)); } \
+          [ -f "$OUT/$tag/crash/trr_predictions.csv" ] && { echo "[$tag/$u] downloaded"; done=$((done+1)); } \
             || echo "[$tag/$u] COMPLETE but no predictions yet"
           ;;
         *RUNNING*|*QUEUED*) echo "[$tag/$u] $st" ;;
