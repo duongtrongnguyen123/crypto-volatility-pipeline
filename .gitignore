@@ -82,3 +82,6 @@ kaggle/out_corpus/
 kaggle/dsc_*/
 kaggle/pk_*/
 data/stockdata/stocknews_corpus.csv
+
+# Spark Parquet data lake (rebuild via processing/spark_corpus_etl.py)
+data/lake/
