@@ -18,7 +18,7 @@ market efficiency, while crash risk carries a real signal from news.
 | 📄 **Report (PDF)** | [`docs/BAO_CAO_VI.pdf`](docs/BAO_CAO_VI.pdf) · source: [`.tex`](docs/BAO_CAO_VI.tex) / [`.md`](docs/BAO_CAO_VI.md) |
 | 📑 **Slides (PDF)** | [`docs/SLIDE_FINAL.pdf`](docs/SLIDE_FINAL.pdf) |
 | 🎥 **Demo video** | [▶ Watch on Google Drive](https://drive.google.com/file/d/1wn5p-PKhR9AFaDvI3taqRd1AVDMMN4LU/view) (preview below) |
-| 🌐 **Live web demo** | **https://bigdata-stock-crash-trr.streamlit.app** — Streamlit (Live & Advisory · Research & Backtest · How it works) |
+| 🌐 **Live web demo** | ⚠️ **Offline** — taken down after the course concluded. See the 🎥 demo video above; run locally with `streamlit run webapp/app.py`. |
 | 📊 **Full results** | [`reports/RESULTS_TRR.md`](reports/RESULTS_TRR.md) |
 
 **Preview — click a cover to open the full PDF (in GitHub's PDF viewer):**
